@@ -39,8 +39,13 @@
 // We make sure this pallet uses `no_std` for compiling to Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+
+use sp_core::sp_std;
+use thiserror::Error;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+
+mod index;
 
 // FRAME pallets require their own "mock runtimes" to be able to run unit tests. This module
 // contains a mock runtime specific for testing this pallet's functionality.
@@ -58,8 +63,25 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
+mod runes;
+
 pub use weights::*;
 
+pub(crate) type Result<T> = sp_std::result::Result<T, OrdError>;
+
+#[derive(Debug, Error)]
+pub enum OrdError {
+	#[error("params: {0}")]
+	Params(String),
+	#[error("overflow")]
+	Overflow,
+	#[error("block verification")]
+	BlockVerification(u32),
+	#[error("index error: {0}")]
+	Index(runes::MintError),
+/*	#[error("rpc error: {0}")]
+	Rpc(#[from] rpc::RpcError),*/
+}
 // All pallet logic is defined in its own module and must be annotated by the `pallet` attribute.
 #[frame_support::pallet]
 pub mod pallet {

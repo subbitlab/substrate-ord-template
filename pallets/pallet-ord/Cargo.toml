@@ -1,6 +1,6 @@
 [package]
-name = "pallet-template"
-description = "FRAME pallet template for defining custom runtime logic."
+name = "pallet-ord"
+description = "A pallet for ord on substrate"
 version = "0.0.0"
 license = "MIT-0"
 authors.workspace = true
@@ -27,6 +27,23 @@ scale-info = { version = "2.10.0", default-features = false, features = [
 frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false, optional = true }
 frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false }
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+syn = "1.0"
+anyhow =  "1"
+thiserror = "1"
+generic-array = "0.14"
+cfg-if = "1.0"
+hex = "0.4"
+core2 = "0.3"
+bitcoin = { version = "0.30.1", default-features = false, features = ["no-std"] }
+bitcoincore-rpc-json = { version = "0.19.0", default-features = false }
+bip39 = "2.0.0"
+hex-literal = "0.4.1"
+lazy_static = "1.4"
+ordinals = { path = "../../ordinals" }
+sha2 = "0.10.8"
+log = "0.4.20"
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-v1.9.0" }

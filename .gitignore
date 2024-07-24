@@ -10,4 +10,5 @@
 .envrc
 .direnv
 
-.vscode/settings.json
+.vscode
+.idea
