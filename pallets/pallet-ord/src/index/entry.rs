@@ -1,6 +1,9 @@
 use crate::index::*;
+use bitcoin::consensus::{Decodable, Encodable};
+use bitcoin::{consensus, OutPoint};
+use codec::{Decode, Encode};
 use core2::io::Cursor;
-use ic_stable_memory::{AsFixedSizeBytes, StableType};
+use ordinals::SatPoint;
 
 pub(crate) trait Entry: Sized {
 	type Value;
@@ -10,36 +13,11 @@ pub(crate) trait Entry: Sized {
 	fn store(self) -> Self::Value;
 }
 
-#[derive(Copy, Eq, PartialEq, Clone, Debug)]
+#[derive(Copy, Eq, PartialEq, Clone, Debug, Encode, Decode)]
 pub struct RuneBalance {
 	pub id: RuneId,
 	pub balance: u128,
 }
-
-impl AsFixedSizeBytes for RuneBalance {
-	type Buf = [u8; Self::SIZE];
-
-	const SIZE: usize = 28;
-
-	fn as_fixed_size_bytes(&self, buf: &mut [u8]) {
-		let mut offset = 0;
-		self
-			.id
-			.as_fixed_size_bytes(&mut buf[offset..offset + RuneId::SIZE]);
-		offset += RuneId::SIZE;
-		self.balance.as_fixed_size_bytes(&mut buf[offset..]);
-	}
-
-	fn from_fixed_size_bytes(buf: &[u8]) -> Self {
-		let mut offset = 0;
-		let id = RuneId::from_fixed_size_bytes(&buf[offset..offset + RuneId::SIZE]);
-		offset += RuneId::SIZE;
-		let balance = u128::from_fixed_size_bytes(&buf[offset..]);
-		Self { id, balance }
-	}
-}
-
-impl StableType for RuneBalance {}
 
 pub(crate) type HeaderValue = [u8; 80];
 
@@ -52,9 +30,7 @@ impl Entry for Header {
 
 	fn store(self) -> Self::Value {
 		let mut buffer = Cursor::new([0; 80]);
-		let len = self
-			.consensus_encode(&mut buffer)
-			.expect("in-memory writers don't error");
+		let len = self.consensus_encode(&mut buffer).expect("in-memory writers don't error");
 		let buffer = buffer.into_inner();
 		debug_assert_eq!(len, buffer.len());
 		buffer
@@ -73,7 +49,7 @@ impl Entry for Rune {
 	}
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, Decode, Encode)]
 pub struct RuneEntry {
 	pub block: u64,
 	pub burned: u128,
@@ -88,101 +64,6 @@ pub struct RuneEntry {
 	pub timestamp: u64,
 	pub turbo: bool,
 }
-
-impl AsFixedSizeBytes for RuneEntry {
-	type Buf = [u8; Self::SIZE];
-
-	const SIZE: usize = 8 + 16 + 1 + 32 + 16 + 16 + SpacedRune::SIZE + 5 + Terms::SIZE + 1 + 8 + 1;
-
-	fn as_fixed_size_bytes(&self, buf: &mut [u8]) {
-		let mut offset = 0;
-		self.block.as_fixed_size_bytes(&mut buf[offset..offset + 8]);
-		offset += 8;
-		self
-			.burned
-			.as_fixed_size_bytes(&mut buf[offset..offset + 16]);
-		offset += 16;
-		self
-			.divisibility
-			.as_fixed_size_bytes(&mut buf[offset..offset + 1]);
-		offset += 1;
-		self
-			.etching
-			.store()
-			.as_fixed_size_bytes(&mut buf[offset..offset + 32]);
-		offset += 32;
-		self
-			.mints
-			.as_fixed_size_bytes(&mut buf[offset..offset + 16]);
-		offset += 16;
-		// self.number.as_fixed_size_bytes(&mut buf[offset..]);
-		// offset += 8;
-		self
-			.premine
-			.as_fixed_size_bytes(&mut buf[offset..offset + 16]);
-		offset += 16;
-		self
-			.spaced_rune
-			.as_fixed_size_bytes(&mut buf[offset..offset + SpacedRune::SIZE]);
-		offset += SpacedRune::SIZE;
-		self
-			.symbol
-			.as_fixed_size_bytes(&mut buf[offset..offset + 5]);
-		offset += 5;
-		self
-			.terms
-			.as_fixed_size_bytes(&mut buf[offset..offset + Terms::SIZE + 1]);
-		offset += Terms::SIZE + 1;
-		self
-			.timestamp
-			.as_fixed_size_bytes(&mut buf[offset..offset + 8]);
-		offset += 8;
-		self.turbo.as_fixed_size_bytes(&mut buf[offset..]);
-	}
-
-	fn from_fixed_size_bytes(buf: &[u8]) -> Self {
-		let mut offset = 0;
-		let block = u64::from_fixed_size_bytes(&buf[offset..offset + 8]);
-		offset += 8;
-		let burned = u128::from_fixed_size_bytes(&buf[offset..offset + 16]);
-		offset += 16;
-		let divisibility = u8::from_fixed_size_bytes(&buf[offset..offset + 1]);
-		offset += 1;
-		let etching = TxidValue::from_fixed_size_bytes(&buf[offset..offset + 32]);
-		offset += 32;
-		let mints = u128::from_fixed_size_bytes(&buf[offset..offset + 16]);
-		offset += 16;
-		// let number = u64::from_fixed_size_bytes(&buf[offset..offset + 8]);
-		// offset += 8;
-		let premine = u128::from_fixed_size_bytes(&buf[offset..offset + 16]);
-		offset += 16;
-		let spaced_rune = SpacedRune::from_fixed_size_bytes(&buf[offset..offset + SpacedRune::SIZE]);
-		offset += SpacedRune::SIZE;
-		let symbol = Option::<char>::from_fixed_size_bytes(&buf[offset..offset + 5]);
-		offset += 5;
-		let terms = Option::<Terms>::from_fixed_size_bytes(&buf[offset..offset + Terms::SIZE + 1]);
-		offset += Terms::SIZE + 1;
-		let timestamp = u64::from_fixed_size_bytes(&buf[offset..offset + 8]);
-		offset += 8;
-		let turbo = bool::from_fixed_size_bytes(&buf[offset..]);
-		Self {
-			block,
-			burned,
-			divisibility,
-			etching: Txid::load(etching),
-			mints,
-			// number,
-			premine,
-			spaced_rune,
-			symbol,
-			terms,
-			timestamp,
-			turbo,
-		}
-	}
-}
-
-impl StableType for RuneEntry {}
 
 impl RuneEntry {
 	pub fn mintable(&self, height: u64) -> Result<u128> {
@@ -212,38 +93,23 @@ impl RuneEntry {
 	}
 
 	pub fn supply(&self) -> u128 {
-		self.premine
-			+ self.mints
-			* self
-			.terms
-			.and_then(|terms| terms.amount)
-			.unwrap_or_default()
+		self.premine + self.mints * self.terms.and_then(|terms| terms.amount).unwrap_or_default()
 	}
 
 	pub fn max_supply(&self) -> u128 {
 		self.premine
 			+ self.terms.and_then(|terms| terms.cap).unwrap_or_default()
-			* self
-			.terms
-			.and_then(|terms| terms.amount)
-			.unwrap_or_default()
+				* self.terms.and_then(|terms| terms.amount).unwrap_or_default()
 	}
 
 	pub fn pile(&self, amount: u128) -> Pile {
-		Pile {
-			amount,
-			divisibility: self.divisibility,
-			symbol: self.symbol,
-		}
+		Pile { amount, divisibility: self.divisibility, symbol: self.symbol }
 	}
 
 	pub fn start(&self) -> Option<u64> {
 		let terms = self.terms?;
 
-		let relative = terms
-			.offset
-			.0
-			.map(|offset| self.block.saturating_add(offset));
+		let relative = terms.offset.0.map(|offset| self.block.saturating_add(offset));
 
 		let absolute = terms.height.0;
 
@@ -257,10 +123,7 @@ impl RuneEntry {
 	pub fn end(&self) -> Option<u64> {
 		let terms = self.terms?;
 
-		let relative = terms
-			.offset
-			.1
-			.map(|offset| self.block.saturating_add(offset));
+		let relative = terms.offset.1.map(|offset| self.block.saturating_add(offset));
 
 		let absolute = terms.height.1;
 
@@ -340,26 +203,18 @@ impl Entry for RuneEntry {
 				let low = etching.0.to_le_bytes();
 				let high = etching.1.to_le_bytes();
 				Txid::from_byte_array([
-					low[0], low[1], low[2], low[3], low[4], low[5], low[6], low[7], low[8], low[9], low[10],
-					low[11], low[12], low[13], low[14], low[15], high[0], high[1], high[2], high[3], high[4],
-					high[5], high[6], high[7], high[8], high[9], high[10], high[11], high[12], high[13],
-					high[14], high[15],
+					low[0], low[1], low[2], low[3], low[4], low[5], low[6], low[7], low[8], low[9],
+					low[10], low[11], low[12], low[13], low[14], low[15], high[0], high[1],
+					high[2], high[3], high[4], high[5], high[6], high[7], high[8], high[9],
+					high[10], high[11], high[12], high[13], high[14], high[15],
 				])
 			},
 			mints,
 			// number,
 			premine,
-			spaced_rune: SpacedRune {
-				rune: Rune(rune),
-				spacers,
-			},
+			spaced_rune: SpacedRune { rune: Rune(rune), spacers },
 			symbol,
-			terms: terms.map(|(cap, height, amount, offset)| Terms {
-				cap,
-				height,
-				amount,
-				offset,
-			}),
+			terms: terms.map(|(cap, height, amount, offset)| Terms { cap, height, amount, offset }),
 			timestamp,
 			turbo,
 		}
@@ -374,12 +229,14 @@ impl Entry for RuneEntry {
 				let bytes = self.etching.to_byte_array();
 				(
 					u128::from_le_bytes([
-						bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-						bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
+						bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6],
+						bytes[7], bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13],
+						bytes[14], bytes[15],
 					]),
 					u128::from_le_bytes([
-						bytes[16], bytes[17], bytes[18], bytes[19], bytes[20], bytes[21], bytes[22], bytes[23],
-						bytes[24], bytes[25], bytes[26], bytes[27], bytes[28], bytes[29], bytes[30], bytes[31],
+						bytes[16], bytes[17], bytes[18], bytes[19], bytes[20], bytes[21],
+						bytes[22], bytes[23], bytes[24], bytes[25], bytes[26], bytes[27],
+						bytes[28], bytes[29], bytes[30], bytes[31],
 					]),
 				)
 			},
@@ -388,14 +245,8 @@ impl Entry for RuneEntry {
 			self.premine,
 			(self.spaced_rune.rune.0, self.spaced_rune.spacers),
 			self.symbol,
-			self.terms.map(
-				|Terms {
-					 cap,
-					 height,
-					 amount,
-					 offset,
-				 }| (cap, height, amount, offset),
-			),
+			self.terms
+				.map(|Terms { cap, height, amount, offset }| (cap, height, amount, offset)),
 			self.timestamp,
 			self.turbo,
 		)
@@ -416,8 +267,8 @@ impl Entry for RuneId {
 	}
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Copy, Debug)]
-pub(crate) struct OutPointValue(pub [u8; 36]);
+#[derive(Clone, Eq, PartialEq, Hash, Copy, Debug, Encode, Decode)]
+pub struct OutPointValue(pub [u8; 36]);
 
 impl Entry for OutPoint {
 	type Value = OutPointValue;
@@ -432,24 +283,6 @@ impl Entry for OutPoint {
 		OutPointValue(value)
 	}
 }
-
-impl AsFixedSizeBytes for OutPointValue {
-	type Buf = [u8; 36];
-
-	const SIZE: usize = 36;
-
-	fn as_fixed_size_bytes(&self, buf: &mut [u8]) {
-		buf.copy_from_slice(&self.0);
-	}
-
-	fn from_fixed_size_bytes(buf: &[u8]) -> Self {
-		let mut value = [0; 36];
-		value.copy_from_slice(buf);
-		Self(value)
-	}
-}
-
-impl StableType for OutPointValue {}
 
 // pub(crate) type TxOutValue = (
 //   u64,     // value
@@ -529,34 +362,13 @@ impl Entry for Txid {
 	}
 }
 
-impl AsFixedSizeBytes for TxidValue {
-	type Buf = [u8; 32];
-
-	const SIZE: usize = 32;
-
-	fn as_fixed_size_bytes(&self, buf: &mut [u8]) {
-		buf.copy_from_slice(&self.0);
-	}
-
-	fn from_fixed_size_bytes(buf: &[u8]) -> Self {
-		let mut value = [0; 32];
-		value.copy_from_slice(buf);
-		Self(value)
-	}
-}
-
-impl StableType for TxidValue {}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
 
 	#[test]
 	fn txout_entry() {
-		let txout = TxOut {
-			value: u64::MAX,
-			script_pubkey: change(0).script_pubkey(),
-		};
+		let txout = TxOut { value: u64::MAX, script_pubkey: change(0).script_pubkey() };
 
 		let value = (u64::MAX, change(0).script_pubkey().to_bytes());
 
@@ -596,11 +408,7 @@ mod tests {
 
 		assert_eq!(
 			inscription_id.store(),
-			(
-				0x0123456789abcdef0123456789abcdef,
-				0x0123456789abcdef0123456789abcdef,
-				0
-			)
+			(0x0123456789abcdef0123456789abcdef, 0x0123456789abcdef0123456789abcdef, 0)
 		);
 
 		assert_eq!(
@@ -639,9 +447,9 @@ mod tests {
 			burned: 1,
 			divisibility: 3,
 			etching: Txid::from_byte_array([
-				0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-				0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
-				0x1E, 0x1F,
+				0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+				0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B,
+				0x1C, 0x1D, 0x1E, 0x1F,
 			]),
 			terms: Some(Terms {
 				cap: Some(1),
@@ -652,10 +460,7 @@ mod tests {
 			mints: 11,
 			// number: 6,
 			premine: 12,
-			spaced_rune: SpacedRune {
-				rune: Rune(7),
-				spacers: 8,
-			},
+			spaced_rune: SpacedRune { rune: Rune(7), spacers: 8 },
 			symbol: Some('a'),
 			timestamp: 10,
 			turbo: true,
@@ -665,10 +470,7 @@ mod tests {
 			12,
 			1,
 			3,
-			(
-				0x0F0E0D0C0B0A09080706050403020100,
-				0x1F1E1D1C1B1A19181716151413121110,
-			),
+			(0x0F0E0D0C0B0A09080706050403020100, 0x1F1E1D1C1B1A19181716151413121110),
 			11,
 			6,
 			12,
@@ -693,10 +495,10 @@ mod tests {
 	#[test]
 	fn header() {
 		let expected = [
-			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-			26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
-			49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
-			72, 73, 74, 75, 76, 77, 78, 79,
+			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+			24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
+			46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67,
+			68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
 		];
 
 		let header = Header::load(expected);
@@ -707,191 +509,176 @@ mod tests {
 
 	#[test]
 	fn mintable_default() {
-		assert_eq!(
-			RuneEntry::default().mintable(0),
-			Err(OrdError::Index(MintError::Unmintable))
-		);
+		assert_eq!(RuneEntry::default().mintable(0), Err(OrdError::Index(MintError::Unmintable)));
 	}
 
 	#[test]
 	fn mintable_cap() {
 		assert_eq!(
-      RuneEntry {
-        terms: Some(Terms {
-          cap: Some(1),
-          amount: Some(1000),
-          ..default()
-        }),
-        mints: 0,
-        ..default()
-      }
-      .mintable(0),
-      Ok(1000),
-    );
+			RuneEntry {
+				terms: Some(Terms { cap: Some(1), amount: Some(1000), ..default() }),
+				mints: 0,
+				..default()
+			}
+			.mintable(0),
+			Ok(1000),
+		);
 
 		assert_eq!(
-      RuneEntry {
-        terms: Some(Terms {
-          cap: Some(1),
-          amount: Some(1000),
-          ..default()
-        }),
-        mints: 1,
-        ..default()
-      }
-      .mintable(0),
-      Err(OrdError::Index(MintError::Cap(1))),
-    );
+			RuneEntry {
+				terms: Some(Terms { cap: Some(1), amount: Some(1000), ..default() }),
+				mints: 1,
+				..default()
+			}
+			.mintable(0),
+			Err(OrdError::Index(MintError::Cap(1))),
+		);
 
 		assert_eq!(
-      RuneEntry {
-        terms: Some(Terms {
-          cap: None,
-          amount: Some(1000),
-          ..default()
-        }),
-        mints: 0,
-        ..default()
-      }
-      .mintable(0),
-      Err(OrdError::Index(MintError::Cap(0))),
-    );
+			RuneEntry {
+				terms: Some(Terms { cap: None, amount: Some(1000), ..default() }),
+				mints: 0,
+				..default()
+			}
+			.mintable(0),
+			Err(OrdError::Index(MintError::Cap(0))),
+		);
 	}
 
 	#[test]
 	fn mintable_offset_start() {
 		assert_eq!(
-      RuneEntry {
-        block: 1,
-        terms: Some(Terms {
-          cap: Some(1),
-          amount: Some(1000),
-          offset: (Some(1), None),
-          ..default()
-        }),
-        mints: 0,
-        ..default()
-      }
-      .mintable(1),
-      Err(OrdError::Index(MintError::Start(2))),
-    );
+			RuneEntry {
+				block: 1,
+				terms: Some(Terms {
+					cap: Some(1),
+					amount: Some(1000),
+					offset: (Some(1), None),
+					..default()
+				}),
+				mints: 0,
+				..default()
+			}
+			.mintable(1),
+			Err(OrdError::Index(MintError::Start(2))),
+		);
 
 		assert_eq!(
-      RuneEntry {
-        block: 1,
-        terms: Some(Terms {
-          cap: Some(1),
-          amount: Some(1000),
-          offset: (Some(1), None),
-          ..default()
-        }),
-        mints: 0,
-        ..default()
-      }
-      .mintable(2),
-      Ok(1000),
-    );
+			RuneEntry {
+				block: 1,
+				terms: Some(Terms {
+					cap: Some(1),
+					amount: Some(1000),
+					offset: (Some(1), None),
+					..default()
+				}),
+				mints: 0,
+				..default()
+			}
+			.mintable(2),
+			Ok(1000),
+		);
 	}
 
 	#[test]
 	fn mintable_offset_end() {
 		assert_eq!(
-      RuneEntry {
-        block: 1,
-        terms: Some(Terms {
-          cap: Some(1),
-          amount: Some(1000),
-          offset: (None, Some(1)),
-          ..default()
-        }),
-        mints: 0,
-        ..default()
-      }
-      .mintable(1),
-      Ok(1000),
-    );
+			RuneEntry {
+				block: 1,
+				terms: Some(Terms {
+					cap: Some(1),
+					amount: Some(1000),
+					offset: (None, Some(1)),
+					..default()
+				}),
+				mints: 0,
+				..default()
+			}
+			.mintable(1),
+			Ok(1000),
+		);
 
 		assert_eq!(
-      RuneEntry {
-        block: 1,
-        terms: Some(Terms {
-          cap: Some(1),
-          amount: Some(1000),
-          offset: (None, Some(1)),
-          ..default()
-        }),
-        mints: 0,
-        ..default()
-      }
-      .mintable(2),
-      Err(OrdError::Index(MintError::End(2))),
-    );
+			RuneEntry {
+				block: 1,
+				terms: Some(Terms {
+					cap: Some(1),
+					amount: Some(1000),
+					offset: (None, Some(1)),
+					..default()
+				}),
+				mints: 0,
+				..default()
+			}
+			.mintable(2),
+			Err(OrdError::Index(MintError::End(2))),
+		);
 	}
 
 	#[test]
 	fn mintable_height_start() {
 		assert_eq!(
-      RuneEntry {
-        terms: Some(Terms {
-          cap: Some(1),
-          amount: Some(1000),
-          height: (Some(1), None),
-          ..default()
-        }),
-        mints: 0,
-        ..default()
-      }
-      .mintable(0),
-      Err(OrdError::Index(MintError::Start(1))),
-    );
+			RuneEntry {
+				terms: Some(Terms {
+					cap: Some(1),
+					amount: Some(1000),
+					height: (Some(1), None),
+					..default()
+				}),
+				mints: 0,
+				..default()
+			}
+			.mintable(0),
+			Err(OrdError::Index(MintError::Start(1))),
+		);
 
 		assert_eq!(
-      RuneEntry {
-        terms: Some(Terms {
-          cap: Some(1),
-          amount: Some(1000),
-          height: (Some(1), None),
-          ..default()
-        }),
-        mints: 0,
-        ..default()
-      }
-      .mintable(1),
-      Ok(1000),
-    );
+			RuneEntry {
+				terms: Some(Terms {
+					cap: Some(1),
+					amount: Some(1000),
+					height: (Some(1), None),
+					..default()
+				}),
+				mints: 0,
+				..default()
+			}
+			.mintable(1),
+			Ok(1000),
+		);
 	}
 
 	#[test]
 	fn mintable_height_end() {
 		assert_eq!(
-      RuneEntry {
-        terms: Some(Terms {
-          cap: Some(1),
-          amount: Some(1000),
-          height: (None, Some(1)),
-          ..default()
-        }),
-        mints: 0,
-        ..default()
-      }
-      .mintable(0),
-      Ok(1000),
-    );
+			RuneEntry {
+				terms: Some(Terms {
+					cap: Some(1),
+					amount: Some(1000),
+					height: (None, Some(1)),
+					..default()
+				}),
+				mints: 0,
+				..default()
+			}
+			.mintable(0),
+			Ok(1000),
+		);
 
 		assert_eq!(
-      RuneEntry {
-        terms: Some(Terms {
-          cap: Some(1),
-          amount: Some(1000),
-          height: (None, Some(1)),
-          ..default()
-        }),
-        mints: 0,
-        ..default()
-      }
-      .mintable(1),
-      Err(OrdError::Index(MintError::End(1))),
-    );
+			RuneEntry {
+				terms: Some(Terms {
+					cap: Some(1),
+					amount: Some(1000),
+					height: (None, Some(1)),
+					..default()
+				}),
+				mints: 0,
+				..default()
+			}
+			.mintable(1),
+			Err(OrdError::Index(MintError::End(1))),
+		);
 	}
 
 	#[test]
@@ -919,10 +706,7 @@ mod tests {
 		{
 			let mut entry = entry;
 			entry.terms.as_mut().unwrap().height.0 = Some(11);
-			assert_eq!(
-				entry.mintable(10),
-				Err(OrdError::Index(MintError::Start(11)))
-			);
+			assert_eq!(entry.mintable(10), Err(OrdError::Index(MintError::Start(11))));
 		}
 
 		{
@@ -934,10 +718,7 @@ mod tests {
 		{
 			let mut entry = entry;
 			entry.terms.as_mut().unwrap().offset.0 = Some(1);
-			assert_eq!(
-				entry.mintable(10),
-				Err(OrdError::Index(MintError::Start(11)))
-			);
+			assert_eq!(entry.mintable(10), Err(OrdError::Index(MintError::Start(11))));
 		}
 
 		{
@@ -951,55 +732,43 @@ mod tests {
 	fn supply() {
 		assert_eq!(
 			RuneEntry {
-				terms: Some(Terms {
-					amount: Some(1000),
-					..default()
-				}),
+				terms: Some(Terms { amount: Some(1000), ..default() }),
 				mints: 0,
 				..default()
 			}
-				.supply(),
+			.supply(),
 			0
 		);
 
 		assert_eq!(
 			RuneEntry {
-				terms: Some(Terms {
-					amount: Some(1000),
-					..default()
-				}),
+				terms: Some(Terms { amount: Some(1000), ..default() }),
 				mints: 1,
 				..default()
 			}
-				.supply(),
+			.supply(),
 			1000
 		);
 
 		assert_eq!(
 			RuneEntry {
-				terms: Some(Terms {
-					amount: Some(1000),
-					..default()
-				}),
+				terms: Some(Terms { amount: Some(1000), ..default() }),
 				mints: 0,
 				premine: 1,
 				..default()
 			}
-				.supply(),
+			.supply(),
 			1
 		);
 
 		assert_eq!(
 			RuneEntry {
-				terms: Some(Terms {
-					amount: Some(1000),
-					..default()
-				}),
+				terms: Some(Terms { amount: Some(1000), ..default() }),
 				mints: 1,
 				premine: 1,
 				..default()
 			}
-				.supply(),
+			.supply(),
 			1001
 		);
 	}

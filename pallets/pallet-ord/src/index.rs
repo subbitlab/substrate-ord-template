@@ -1,3 +1,7 @@
+use bitcoin::constants::SUBSIDY_HALVING_INTERVAL;
+use bitcoin::hashes::Hash;
+use bitcoin::{BlockHash, OutPoint, Txid};
+use ordinals::{Pile, Rune, RuneId, SpacedRune, Terms};
 use {
 	self::{entry::Entry, event::Event, lot::Lot},
 	super::{runes::MintError, *},
@@ -15,7 +19,7 @@ mod updater;
 
 #[allow(dead_code)]
 pub const SCHEMA_VERSION: u64 = 26;
-
+/*
 fn set_beginning_block() {
 	let hash = BlockHash::from_str(FIRST_BLOCK_HASH).expect("valid hash");
 	crate::increase_height(FIRST_HEIGHT, hash);
@@ -127,11 +131,11 @@ pub fn sync(secs: u64) {
 							Ok(block) => {
 								if block.header.prev_blockhash != current {
 									log::info!(
-                    "reorg detected! our best = {}({:x}), the new block to be applied {:?}",
-                    height,
-                    current,
-                    block.header
-                  );
+					"reorg detected! our best = {}({:x}), the new block to be applied {:?}",
+					height,
+					current,
+					block.header
+				  );
 									sync(300);
 									return;
 								}
@@ -156,3 +160,4 @@ pub fn sync(secs: u64) {
 		});
 	});
 }
+*/

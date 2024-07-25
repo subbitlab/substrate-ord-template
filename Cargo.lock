@@ -5354,7 +5354,9 @@ dependencies = [
  "core2 0.3.3",
  "derive_more",
  "ic-stable-memory",
+ "parity-scale-codec",
  "pretty_assertions",
+ "scale-info",
  "serde",
  "serde_json",
  "serde_with",
@@ -5458,6 +5460,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-v1.9.0)",
  "syn 1.0.109",
  "thiserror",
 ]

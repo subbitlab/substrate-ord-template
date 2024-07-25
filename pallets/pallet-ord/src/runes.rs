@@ -1,5 +1,3 @@
-use sp_core::sp_std;
-
 #[derive(Debug, PartialEq)]
 pub enum MintError {
 	Cap(u128),

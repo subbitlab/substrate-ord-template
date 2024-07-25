@@ -1,10 +1,9 @@
-use crate::index::{entry::RuneBalance, *};
-use ic_stable_memory::collections::SVec;
-use std::collections::HashMap;
-use bitcoin::{OutPoint, Transaction, Txid};
-use ordinals::{Artifact, Edict, Rune, RuneId, Runestone, SpacedRune};
 use crate::index::lot::Lot;
-
+use crate::index::{entry::RuneBalance, *};
+use bitcoin::{OutPoint, Transaction, Txid};
+use ordinals::{Artifact, Edict, Etching, Rune, RuneId, Runestone, SpacedRune};
+use std::collections::HashMap;
+/*
 pub(super) struct RuneUpdater {
 	pub(super) block_time: u32,
 	pub(super) burned: HashMap<RuneId, Lot>,
@@ -14,7 +13,12 @@ pub(super) struct RuneUpdater {
 }
 
 impl RuneUpdater {
-	pub(super) fn index_runes(&mut self, tx_index: u32, tx: &Transaction, txid: Txid) -> Result<()> {
+	pub(super) fn index_runes(
+		&mut self,
+		tx_index: u32,
+		tx: &Transaction,
+		txid: Txid,
+	) -> Result<()> {
 		let artifact = Runestone::decipher(tx);
 
 		let mut unallocated = self.unallocated(tx)?;
@@ -89,7 +93,8 @@ impl RuneUpdater {
 							if amount == 0 {
 								// if amount is zero, divide balance between eligible outputs
 								let amount = *balance / destinations.len() as u128;
-								let remainder = usize::try_from(*balance % destinations.len() as u128).unwrap();
+								let remainder =
+									usize::try_from(*balance % destinations.len() as u128).unwrap();
 
 								for (i, output) in destinations.iter().enumerate() {
 									allocate(
@@ -107,11 +112,7 @@ impl RuneUpdater {
 						}
 					} else {
 						// Get the allocatable amount
-						let amount = if amount == 0 {
-							*balance
-						} else {
-							amount.min(*balance)
-						};
+						let amount = if amount == 0 { *balance } else { amount.min(*balance) };
 
 						allocate(balance, amount, output);
 					}
@@ -148,8 +149,7 @@ impl RuneUpdater {
 						.enumerate()
 						.find(|(_vout, tx_out)| !tx_out.script_pubkey.is_op_return())
 						.map(|(vout, _tx_out)| vout)
-				})
-			{
+				}) {
 				for (id, balance) in unallocated {
 					if balance > 0 {
 						*allocated[vout].entry(id).or_default() += balance;
@@ -183,18 +183,10 @@ impl RuneUpdater {
 			// Sort balances by id so tests can assert balances in a fixed order
 			// balances.sort();
 
-			let outpoint = OutPoint {
-				txid,
-				vout: vout.try_into().unwrap(),
-			};
-			let mut vec = SVec::new_with_capacity(balances.len()).expect("out of memory");
+			let outpoint = OutPoint { txid, vout: vout.try_into().unwrap() };
+			let mut vec = Vec::new_with_capacity(balances.len()).expect("out of memory");
 			for (id, balance) in balances {
-				vec
-					.push(RuneBalance {
-						id,
-						balance: balance.0,
-					})
-					.expect("MemoryOverflow");
+				vec.push(RuneBalance { id, balance: balance.0 }).expect("MemoryOverflow");
 				if let Some(handler) = &self.event_handler {
 					handler(Event::RuneTransferred {
 						outpoint,
@@ -206,7 +198,7 @@ impl RuneUpdater {
 				}
 			}
 
-			outpoint_to_rune_balances(|b| b.insert(outpoint.store(), vec).expect("MemoryOverflow"));
+			//TODO	outpoint_to_rune_balances(|b| b.insert(outpoint.store(), vec).expect("MemoryOverflow"));
 		}
 
 		// increment entries with burned runes
@@ -261,15 +253,8 @@ impl RuneUpdater {
 				turbo: false,
 			},
 			Artifact::Runestone(Runestone { etching, .. }) => {
-				let Etching {
-					divisibility,
-					terms,
-					premine,
-					spacers,
-					symbol,
-					turbo,
-					..
-				} = etching.unwrap();
+				let Etching { divisibility, terms, premine, spacers, symbol, turbo, .. } =
+					etching.unwrap();
 
 				RuneEntry {
 					block: id.block,
@@ -279,26 +264,21 @@ impl RuneUpdater {
 					terms,
 					mints: 0,
 					premine: premine.unwrap_or_default(),
-					spaced_rune: SpacedRune {
-						rune,
-						spacers: spacers.unwrap_or_default(),
-					},
+					spaced_rune: SpacedRune { rune, spacers: spacers.unwrap_or_default() },
 					symbol,
 					timestamp: self.block_time.into(),
 					turbo,
 				}
-			}
+			},
 		};
 
 		crate::rune_id_to_rune_entry(|r| r.insert(id, entry)).expect("Overflow");
 
 		match &self.event_handler {
-			Some(handler) => handler(Event::RuneEtched {
-				block_height: self.height,
-				txid,
-				rune_id: id,
-			}),
-			None => {}
+			Some(handler) => {
+				handler(Event::RuneEtched { block_height: self.height, txid, rune_id: id })
+			},
+			None => {},
 		}
 		Ok(())
 	}
@@ -332,13 +312,7 @@ impl RuneUpdater {
 			Rune::reserved(self.height.into(), tx_index)
 		};
 
-		Ok(Some((
-			RuneId {
-				block: self.height.into(),
-				tx: tx_index,
-			},
-			rune,
-		)))
+		Ok(Some((RuneId { block: self.height.into(), tx: tx_index }, rune)))
 	}
 
 	fn mint(&mut self, id: RuneId) -> Result<Option<Lot>> {
@@ -406,9 +380,9 @@ impl RuneUpdater {
 
 		// increment unallocated runes with the runes in tx inputs
 		for input in &tx.input {
-			if let Some(balances) =
-				crate::outpoint_to_rune_balances(|b| b.remove(&OutPoint::store(input.previous_output)))
-			{
+			if let Some(balances) = crate::outpoint_to_rune_balances(|b| {
+				b.remove(&OutPoint::store(input.previous_output))
+			}) {
 				for rune in balances.iter() {
 					let rune = *rune;
 					*unallocated.entry(rune.id).or_default() += rune.balance;
@@ -418,3 +392,4 @@ impl RuneUpdater {
 		Ok(unallocated)
 	}
 }
+*/
