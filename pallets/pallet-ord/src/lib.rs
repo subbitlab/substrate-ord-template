@@ -180,28 +180,20 @@ pub mod pallet {
 			}
 		}
 
-
-	}
-	/*use bitcoin::BlockHash;
-	impl<T: Config> Pallet<T> {
 		pub fn init_rune() {
 			Self::set_beginning_block();
 			let rune = Rune(2055900680524219742);
-
 			let id = RuneId { block: 1, tx: 0 };
-			let etching = Txid::all_zeros();
-
-			rune_to_rune_id(|r| r.insert(rune.store(), id)).expect("MemoryOverflow");
-
-			rune_id_to_rune_entry(|r| {
-				r.insert(
+			let etching = Txid([0u8; 32]);
+			RuneToRuneId::<T>::insert(rune.store(), id);
+			RuneIdToRuneEntry::<T>::insert(
 					id,
 					RuneEntry {
 						block: id.block,
 						burned: 0,
 						divisibility: 0,
 						etching,
-						terms: Some(Terms {
+				/*		terms: Some(Terms {
 							amount: Some(1),
 							cap: Some(u128::MAX),
 							height: (
@@ -209,47 +201,25 @@ pub mod pallet {
 								Some((SUBSIDY_HALVING_INTERVAL * 5).into()),
 							),
 							offset: (None, None),
-						}),
+						}),*/ //TODO
+
 						mints: 0,
 						premine: 0,
 						spaced_rune: SpacedRune { rune, spacers: 128 },
-						symbol: Some('\u{29C9}'),
+						/*symbol: Some('\u{29C9}'),*/ //TODO
 						timestamp: 0,
 						turbo: true,
 					},
-				)
-			})
-				.expect("MemoryOverflow");
-
-			transaction_id_to_rune(|t| t.insert(Txid::store(etching), rune.store())).expect("MemoryOverflow");
+				);
+				TransactionIdToRune::<T>::insert(Txid::store(etching), rune.store());
 		}
 
-		#[allow(dead_code)]
-		pub(crate) fn get_rune_balances_for_output(
-			outpoint: OutPoint,
-		) -> Result<BTreeMap<SpacedRune, Pile>> {
-			crate::outpoint_to_rune_balances(|o| match o.get(&OutPoint::store(outpoint)) {
-				Some(balances) => {
-					let mut result = BTreeMap::new();
-					for rune in balances.iter() {
-						let rune = *rune;
 
-						let entry = rune_id_to_rune_entry(|r| r.get(&rune.id).map(|r| *r).unwrap());
 
-						result.insert(
-							entry.spaced_rune,
-							Pile {
-								amount: rune.balance,
-								divisibility: entry.divisibility,
-								symbol: entry.symbol,
-							},
-						);
-					}
-					Ok(result)
-				}
-				None => Ok(BTreeMap::new()),
-			})
-		}
+	}
+
+	/*use bitcoin::BlockHash;
+	impl<T: Config> Pallet<T> {
 
 		pub(crate) async fn get_best_from_rpc() -> Result<(u32, BlockHash)> {
 			let url = get_url();
