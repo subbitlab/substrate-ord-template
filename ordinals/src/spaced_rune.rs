@@ -1,6 +1,7 @@
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 use super::*;
 use ic_stable_memory::{AsFixedSizeBytes, StableType};
+use scale_info::TypeInfo;
 
 #[derive(
 	Copy,
@@ -13,29 +14,25 @@ use ic_stable_memory::{AsFixedSizeBytes, StableType};
 	Default,
 	DeserializeFromStr,
 	SerializeDisplay,
-	Decode, Encode
+	Decode, Encode, TypeInfo, MaxEncodedLen
 )]
 pub struct SpacedRune {
 	pub rune: Rune,
 	pub spacers: u32,
 }
 
-impl AsFixedSizeBytes for SpacedRune {
-	type Buf = [u8; Self::SIZE];
-
-	const SIZE: usize = 20;
-
-	fn as_fixed_size_bytes(&self, buf: &mut [u8]) {
-		self.rune.as_fixed_size_bytes(&mut buf[..16]);
-		self.spacers.as_fixed_size_bytes(&mut buf[16..]);
-	}
-
-	fn from_fixed_size_bytes(buf: &[u8]) -> Self {
-		let rune = Rune::from_fixed_size_bytes(&buf[..16]);
-		let spacers = u32::from_fixed_size_bytes(&buf[16..]);
-		Self { rune, spacers }
-	}
-}
+#[derive(
+Copy,
+Clone,
+Debug,
+PartialEq,
+Ord,
+PartialOrd,
+Eq,
+Default,
+Decode, Encode, TypeInfo, MaxEncodedLen
+)]
+pub struct Txid(pub [u8;32]);
 
 impl StableType for SpacedRune {}
 

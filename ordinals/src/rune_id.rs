@@ -1,7 +1,7 @@
 use super::*;
-use candid::CandidType;
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 use ic_stable_memory::{AsFixedSizeBytes, StableType};
+use scale_info::TypeInfo;
 
 #[derive(
 	Debug,
@@ -15,7 +15,7 @@ use ic_stable_memory::{AsFixedSizeBytes, StableType};
 	Default,
 	DeserializeFromStr,
 	SerializeDisplay,
-	Decode, Encode
+	Decode, Encode, TypeInfo, MaxEncodedLen
 )]
 pub struct RuneId {
 	pub block: u64,

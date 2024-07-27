@@ -1,5 +1,7 @@
+use codec::{Decode, Encode, MaxEncodedLen};
 use super::*;
 use ic_stable_memory::{AsFixedSizeBytes, StableType};
+use scale_info::TypeInfo;
 
 #[derive(
 	Default,
@@ -12,6 +14,7 @@ use ic_stable_memory::{AsFixedSizeBytes, StableType};
 	Eq,
 	DeserializeFromStr,
 	SerializeDisplay,
+	Decode, Encode, TypeInfo, MaxEncodedLen
 )]
 pub struct Rune(pub u128);
 

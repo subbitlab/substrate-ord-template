@@ -1,9 +1,14 @@
-use crate::index::*;
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::{consensus, OutPoint};
-use codec::{Decode, Encode};
+use bitcoin::block::Header;
+use bitcoin::hashes::Hash;
+use codec::{Decode, Encode, MaxEncodedLen};
 use core2::io::Cursor;
-use ordinals::SatPoint;
+use scale_info::TypeInfo;
+use ordinals::{Pile, Rune, RuneId, SatPoint, SpacedRune, Terms, Txid};
+use crate::OrdError;
+use crate::runes::MintError;
+use crate::index::Result;
 
 pub(crate) trait Entry: Sized {
 	type Value;
@@ -13,7 +18,7 @@ pub(crate) trait Entry: Sized {
 	fn store(self) -> Self::Value;
 }
 
-#[derive(Copy, Eq, PartialEq, Clone, Debug, Encode, Decode)]
+#[derive(Copy, Eq, PartialEq, Clone, Debug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct RuneBalance {
 	pub id: RuneId,
 	pub balance: u128,
@@ -49,7 +54,7 @@ impl Entry for Rune {
 	}
 }
 
-#[derive(Debug, PartialEq, Copy, Clone, Decode, Encode)]
+#[derive(Debug, PartialEq, Copy, Clone, Decode, Encode, TypeInfo, MaxEncodedLen)]
 pub struct RuneEntry {
 	pub block: u64,
 	pub burned: u128,
@@ -59,15 +64,16 @@ pub struct RuneEntry {
 	// pub number: u64,
 	pub premine: u128,
 	pub spaced_rune: SpacedRune,
-	pub symbol: Option<char>,
+/*	pub symbol: Option<char>,
 	pub terms: Option<Terms>,
-	pub timestamp: u64,
+*/	pub timestamp: u64,
 	pub turbo: bool,
 }
 
 impl RuneEntry {
 	pub fn mintable(&self, height: u64) -> Result<u128> {
-		let Some(terms) = self.terms else {
+		//TODO
+		/*let Some(terms) = self.terms else {
 			return Err(OrdError::Index(MintError::Unmintable));
 		};
 
@@ -90,24 +96,32 @@ impl RuneEntry {
 		}
 
 		Ok(terms.amount.unwrap_or_default())
+		 */
+		Ok(100)
 	}
 
 	pub fn supply(&self) -> u128 {
-		self.premine + self.mints * self.terms.and_then(|terms| terms.amount).unwrap_or_default()
+
+		/*self.premine + self.mints * self.terms.and_then(|terms| terms.amount).unwrap_or_default()*/
+		//TODO
+		100
 	}
 
 	pub fn max_supply(&self) -> u128 {
-		self.premine
+		/*self.premine
 			+ self.terms.and_then(|terms| terms.cap).unwrap_or_default()
-				* self.terms.and_then(|terms| terms.amount).unwrap_or_default()
+				* self.terms.and_then(|terms| terms.amount).unwrap_or_default()*/
+		//TODO
+		self.premine
 	}
 
 	pub fn pile(&self, amount: u128) -> Pile {
-		Pile { amount, divisibility: self.divisibility, symbol: self.symbol }
+		//TODO
+		Pile { amount, divisibility: self.divisibility, symbol: None /*self.symbol*/ }
 	}
 
 	pub fn start(&self) -> Option<u64> {
-		let terms = self.terms?;
+		/*let terms = self.terms?;
 
 		let relative = terms.offset.0.map(|offset| self.block.saturating_add(offset));
 
@@ -117,11 +131,13 @@ impl RuneEntry {
 			.zip(absolute)
 			.map(|(relative, absolute)| relative.max(absolute))
 			.or(relative)
-			.or(absolute)
+			.or(absolute)*/
+		Some(100)
+		//TODO
 	}
 
 	pub fn end(&self) -> Option<u64> {
-		let terms = self.terms?;
+		/*let terms = self.terms?;
 
 		let relative = terms.offset.1.map(|offset| self.block.saturating_add(offset));
 
@@ -131,7 +147,9 @@ impl RuneEntry {
 			.zip(absolute)
 			.map(|(relative, absolute)| relative.min(absolute))
 			.or(relative)
-			.or(absolute)
+			.or(absolute)*/
+		//TODO
+		Some(100)
 	}
 }
 
@@ -151,8 +169,8 @@ pub(crate) type RuneEntryValue = (
 	// u64,                     // number
 	u128,                    // premine
 	(u128, u32),             // spaced rune
-	Option<char>,            // symbol
-	Option<TermsEntryValue>, // terms
+/*	Option<char>,             symbol
+	Option<TermsEntryValue>,  terms*/
 	u64,                     // timestamp
 	bool,                    // turbo
 );
@@ -163,13 +181,13 @@ impl Default for RuneEntry {
 			block: 0,
 			burned: 0,
 			divisibility: 0,
-			etching: Txid::all_zeros(),
+			etching: Txid([0u8; 32]),
 			mints: 0,
 			// number: 0,
 			premine: 0,
 			spaced_rune: SpacedRune::default(),
-			symbol: None,
-			terms: None,
+/*			symbol: None,
+			terms: None,*/
 			timestamp: 0,
 			turbo: false,
 		}
@@ -189,8 +207,8 @@ impl Entry for RuneEntry {
 			// number,
 			premine,
 			(rune, spacers),
-			symbol,
-			terms,
+	/*		symbol,
+			terms,*/
 			timestamp,
 			turbo,
 		): RuneEntryValue,
@@ -202,7 +220,7 @@ impl Entry for RuneEntry {
 			etching: {
 				let low = etching.0.to_le_bytes();
 				let high = etching.1.to_le_bytes();
-				Txid::from_byte_array([
+				Txid([
 					low[0], low[1], low[2], low[3], low[4], low[5], low[6], low[7], low[8], low[9],
 					low[10], low[11], low[12], low[13], low[14], low[15], high[0], high[1],
 					high[2], high[3], high[4], high[5], high[6], high[7], high[8], high[9],
@@ -213,9 +231,9 @@ impl Entry for RuneEntry {
 			// number,
 			premine,
 			spaced_rune: SpacedRune { rune: Rune(rune), spacers },
-			symbol,
+		/*	symbol,
 			terms: terms.map(|(cap, height, amount, offset)| Terms { cap, height, amount, offset }),
-			timestamp,
+	*/		timestamp,
 			turbo,
 		}
 	}
@@ -226,7 +244,7 @@ impl Entry for RuneEntry {
 			self.burned,
 			self.divisibility,
 			{
-				let bytes = self.etching.to_byte_array();
+				let bytes = self.etching.0;
 				(
 					u128::from_le_bytes([
 						bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6],
@@ -244,10 +262,10 @@ impl Entry for RuneEntry {
 			// self.number,
 			self.premine,
 			(self.spaced_rune.rune.0, self.spaced_rune.spacers),
-			self.symbol,
+/*			self.symbol,
 			self.terms
 				.map(|Terms { cap, height, amount, offset }| (cap, height, amount, offset)),
-			self.timestamp,
+	*/		self.timestamp,
 			self.turbo,
 		)
 	}
@@ -267,7 +285,7 @@ impl Entry for RuneId {
 	}
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Copy, Debug, Encode, Decode)]
+#[derive(Clone, Eq, PartialEq, Hash, Copy, Debug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct OutPointValue(pub [u8; 36]);
 
 impl Entry for OutPoint {
@@ -347,18 +365,18 @@ impl Entry for SatRange {
 	}
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Decode, Encode, TypeInfo, MaxEncodedLen, Copy)]
 pub(crate) struct TxidValue(pub [u8; 32]);
 
 impl Entry for Txid {
 	type Value = TxidValue;
 
 	fn load(value: Self::Value) -> Self {
-		Txid::from_byte_array(value.0)
+		Txid(value.0)
 	}
 
 	fn store(self) -> Self::Value {
-		TxidValue(Txid::to_byte_array(self))
+		TxidValue(self.0)
 	}
 }
 
