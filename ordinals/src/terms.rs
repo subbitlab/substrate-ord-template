@@ -1,8 +1,21 @@
-use codec::{Decode, Encode, MaxEncodedLen};
 use super::*;
+use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Copy, Clone, Eq, Decode, Encode, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Default,
+	Serialize,
+	Deserialize,
+	Debug,
+	PartialEq,
+	Copy,
+	Clone,
+	Eq,
+	Decode,
+	Encode,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 pub struct Terms {
 	pub amount: Option<u128>,
 	pub cap: Option<u128>,

@@ -1,5 +1,5 @@
 use super::*;
-
+use sp_std::vec::Vec;
 pub fn encode_to_vec(mut n: u128, v: &mut Vec<u8>) {
 	while n >> 7 > 0 {
 		v.push(n.to_le_bytes()[0] | 0b1000_0000);
@@ -54,8 +54,6 @@ impl Display for Error {
 		}
 	}
 }
-
-impl std::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {

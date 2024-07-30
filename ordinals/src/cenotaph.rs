@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Serialize, Eq, PartialEq, Deserialize, Debug, Default)]
+#[derive(Eq, PartialEq, Debug, Default)]
 pub struct Cenotaph {
 	pub etching: Option<Rune>,
 	pub flaw: Option<Flaw>,

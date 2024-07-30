@@ -1,6 +1,7 @@
 use super::*;
+use alloc::string::String;
 
-#[derive(Debug, PartialEq, PartialOrd, Copy, Clone, DeserializeFromStr, SerializeDisplay)]
+#[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum Rarity {
 	Common,
 	Uncommon,

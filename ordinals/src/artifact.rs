@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Serialize, Eq, PartialEq, Deserialize, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum Artifact {
 	Cenotaph(Cenotaph),
 	Runestone(Runestone),

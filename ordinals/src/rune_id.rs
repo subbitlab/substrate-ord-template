@@ -1,5 +1,6 @@
 use super::*;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::MaxEncodedLen;
+use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
 #[derive(
@@ -12,9 +13,10 @@ use scale_info::TypeInfo;
 	Ord,
 	PartialOrd,
 	Default,
-	DeserializeFromStr,
-	SerializeDisplay,
-	Decode, Encode, TypeInfo, MaxEncodedLen
+	Decode,
+	Encode,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct RuneId {
 	pub block: u64,
@@ -77,18 +79,6 @@ pub enum Error {
 	Block(ParseIntError),
 	Transaction(ParseIntError),
 }
-
-impl Display for Error {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		match self {
-			Self::Separator => write!(f, "missing separator"),
-			Self::Block(err) => write!(f, "invalid height: {err}"),
-			Self::Transaction(err) => write!(f, "invalid index: {err}"),
-		}
-	}
-}
-
-impl std::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {

@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Copy, Clone, Debug, PartialEq, DeserializeFromStr, SerializeDisplay)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Charm {
 	Coin = 0,
 	Cursed = 1,

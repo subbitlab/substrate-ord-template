@@ -4,18 +4,18 @@
 use sp_runtime::offchain::http;
 use thiserror::Error;
 // Re-export pallet items so that they can be accessed from the crate namespace.
-use sp_std::vec::Vec;
-use sp_std::collections::btree_map::BTreeMap;
 use ordinals::{Rune, RuneId};
+use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec::Vec;
 
 pub mod index;
+mod rpc;
 mod runes;
 pub mod weights;
-mod rpc;
 
-pub use weights::*;
 use crate::index::event::Event;
 use crate::index::lot::Lot;
+pub use weights::*;
 
 pub const REQUIRED_CONFIRMATIONS: u32 = 4;
 pub const FIRST_HEIGHT: u32 = 839999;
@@ -26,8 +26,7 @@ pub(crate) type Result<T> = sp_std::result::Result<T, OrdError>;
 
 pub(crate) type OffchainWorkerRpcResult<T> = sp_std::result::Result<T, http::Error>;
 
-
-#[derive(Debug,Error)]
+#[derive(Debug, Error)]
 pub enum OrdError {
 	#[error("params: {0}")]
 	Params(String),
@@ -40,18 +39,18 @@ pub enum OrdError {
 	#[error("rpc error: {0}")]
 	Rpc(#[from] rpc::RpcError),
 	#[error("offchain http error")]
-	OffchainHttp(http::Error)
+	OffchainHttp(http::Error),
 }
 // All pallet logic is defined in its own module and must be annotated by the `pallet` attribute.
 #[frame_support::pallet]
 pub mod pallet {
 	// Import various useful types required by all FRAME pallets.
 	use super::*;
+	use crate::index::entry::{Entry, OutPointValue, RuneBalance, TxidValue};
+	use crate::index::RuneEntry;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use ordinals::{Artifact, Edict, Etching, Pile, Rune, RuneId, SpacedRune};
-	use crate::index::entry::{Entry, OutPointValue, RuneBalance, TxidValue};
-	use crate::index::RuneEntry;
 
 	// The `Pallet` struct serves as a placeholder to implement traits, methods and dispatchables
 	// (`Call`s) in this pallet.
@@ -72,8 +71,13 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn outpoint_to_rune_balances)]
-	pub type OutPointRuneBalances<T: Config> =
-		StorageMap<_, Twox64Concat, OutPointValue, BoundedVec<RuneBalance, T::MaxOutPointRuneBalancesLen>, OptionQuery>;
+	pub type OutPointRuneBalances<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		OutPointValue,
+		BoundedVec<RuneBalance, T::MaxOutPointRuneBalancesLen>,
+		OptionQuery,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn rune_id_to_rune_entry)]
@@ -82,8 +86,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn rune_to_rune_id)]
-	pub type RuneToRuneId<T: Config> =
-		StorageMap<_, Blake2_128Concat, u128, RuneId, OptionQuery>;
+	pub type RuneToRuneId<T: Config> = StorageMap<_, Blake2_128Concat, u128, RuneId, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn transaction_id_to_rune)]
@@ -93,12 +96,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn height_to_block_hash)]
 	pub type HeightToBlockHash<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, [u8;32], OptionQuery>;
+		StorageMap<_, Blake2_128Concat, u32, [u8; 32], OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn highest_height)]
-	pub type HighestHeight<T: Config> =
-	StorageValue<_, (u32, [u8;32]), OptionQuery>;
+	pub type HighestHeight<T: Config> = StorageValue<_, (u32, [u8; 32]), OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -129,26 +131,25 @@ pub mod pallet {
 		}
 	}
 
-	use bitcoin::{BlockHash, Transaction};
-	use bitcoin::consensus::Encodable;
-	use ordinals::{Txid,Runestone};
 	use bitcoin::blockdata::transaction::OutPoint;
+	use bitcoin::consensus::Encodable;
 	use bitcoin::hashes::Hash;
+	use bitcoin::{BlockHash, Transaction};
 	use bitcoincore_rpc_json::GetRawTransactionResult;
+	use ordinals::{Runestone, Txid};
 
 	impl<T: Config> Pallet<T> {
-
-		pub(crate) fn increase_height(height: u32, hash: [u8;32]) {
+		pub(crate) fn increase_height(height: u32, hash: [u8; 32]) {
 			HeightToBlockHash::<T>::insert(height, hash.clone());
 			HighestHeight::<T>::put((height, hash));
 		}
 
-		pub(crate) fn highest_block() -> (u32, [u8;32]) {
+		pub(crate) fn highest_block() -> (u32, [u8; 32]) {
 			Self::highest_height().unwrap_or_default()
 		}
 
 		fn set_beginning_block() {
-			let mut hash = [0u8;32];
+			let mut hash = [0u8; 32];
 			let hex = hex::decode(FIRST_BLOCK_HASH).unwrap();
 			hash.copy_from_slice(hex.as_slice());
 			Self::increase_height(FIRST_HEIGHT, hash);
@@ -182,12 +183,12 @@ pub mod pallet {
 								amount: rune.balance,
 								divisibility: entry.divisibility,
 
-								symbol: None/*entry.symbol*/, //TODO
+								symbol: None, /*entry.symbol*/, //TODO
 							},
 						);
 					}
 					Ok(result)
-				}
+				},
 				None => Ok(BTreeMap::new()),
 			}
 		}
@@ -199,41 +200,37 @@ pub mod pallet {
 			let etching = Txid([0u8; 32]);
 			RuneToRuneId::<T>::insert(rune.store(), id);
 			RuneIdToRuneEntry::<T>::insert(
-					id,
-					RuneEntry {
-						block: id.block,
-						burned: 0,
-						divisibility: 0,
-						etching,
-				/*		terms: Some(Terms {
-							amount: Some(1),
-							cap: Some(u128::MAX),
-							height: (
-								Some((SUBSIDY_HALVING_INTERVAL * 4).into()),
-								Some((SUBSIDY_HALVING_INTERVAL * 5).into()),
-							),
-							offset: (None, None),
-						}),*/ //TODO
-						mints: 0,
-						premine: 0,
-						spaced_rune: SpacedRune { rune, spacers: 128 },
-						/*symbol: Some('\u{29C9}'),*/ //TODO
-						timestamp: 0,
-						turbo: true,
-					},
-				);
+				id,
+				RuneEntry {
+					block: id.block,
+					burned: 0,
+					divisibility: 0,
+					etching,
+					/*		terms: Some(Terms {
+						amount: Some(1),
+						cap: Some(u128::MAX),
+						height: (
+							Some((SUBSIDY_HALVING_INTERVAL * 4).into()),
+							Some((SUBSIDY_HALVING_INTERVAL * 5).into()),
+						),
+						offset: (None, None),
+					}),*/ //TODO
+					mints: 0,
+					premine: 0,
+					spaced_rune: SpacedRune { rune, spacers: 128 },
+					/*symbol: Some('\u{29C9}'),*/ //TODO
+					timestamp: 0,
+					turbo: true,
+				},
+			);
 			TransactionIdToRune::<T>::insert(Txid::store(etching), rune.store());
 		}
-
-
 	}
-
 
 	use crate::index::updater::BlockData;
 
 	//updater
 	impl<T: Config> Pallet<T> {
-
 		pub fn get_block(height: u32) -> Result<BlockData> {
 			let url = "get_url()"; //TODO
 			let hash = rpc::get_block_hash(&url, height)?;
@@ -266,7 +263,6 @@ pub mod pallet {
 			Ok(unallocated)
 		}
 
-
 		pub fn get_best_from_rpc() -> Result<(u32, BlockHash)> {
 			let url = "get_url()"; //TODO
 			let hash = rpc::get_best_block_hash(&url)?;
@@ -275,7 +271,8 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> Pallet<T> { //runes updater integreate
+	impl<T: Config> Pallet<T> {
+		//runes updater integreate
 		pub(super) fn index_runes(
 			updater: &mut RuneUpdater,
 			tx_index: u32,
@@ -357,7 +354,8 @@ pub mod pallet {
 									// if amount is zero, divide balance between eligible outputs
 									let amount = *balance / destinations.len() as u128;
 									let remainder =
-										usize::try_from(*balance % destinations.len() as u128).unwrap();
+										usize::try_from(*balance % destinations.len() as u128)
+											.unwrap();
 
 									for (i, output) in destinations.iter().enumerate() {
 										allocate(
@@ -485,9 +483,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-
-
-
 		fn create_rune_entry(
 			updater: &mut RuneUpdater,
 			txid: Txid,
@@ -536,9 +531,11 @@ pub mod pallet {
 
 			let bitcoin_txid = bitcoin::Txid::from_slice(txid.0.as_slice()).unwrap();
 			match &updater.event_handler {
-				Some(handler) => {
-					handler(crate::index::event::Event::RuneEtched { block_height: updater.height, txid: bitcoin_txid, rune_id: id })
-				},
+				Some(handler) => handler(crate::index::event::Event::RuneEtched {
+					block_height: updater.height,
+					txid: bitcoin_txid,
+					rune_id: id,
+				}),
 				None => {},
 			}
 			Ok(())
@@ -589,7 +586,7 @@ pub mod pallet {
 		}
 
 		pub fn update(updater: RuneUpdater) -> Result<()> {
-			for (rune_id, burned) in updater.burned{
+			for (rune_id, burned) in updater.burned {
 				let mut entry = Self::rune_id_to_rune_entry(rune_id.clone()).unwrap();
 				entry.burned = entry.burned.checked_add(burned.n()).unwrap();
 				RuneIdToRuneEntry::<T>::insert(rune_id, entry);
@@ -623,13 +620,14 @@ pub mod pallet {
 					}
 
 					let v = input.previous_output.txid.to_byte_array();
-					let mut txid_content = [0u8;32];
+					let mut txid_content = [0u8; 32];
 					txid_content.copy_from_slice(v.as_slice());
 					let txid = Txid(txid_content);
 					let tx_info = Self::get_raw_tx(txid)?;
 					let taproot = tx_info.vout[input.previous_output.vout as usize]
 						.script_pub_key
-						.script().map_err(|e| OrdError::Params(e.to_string()))?
+						.script()
+						.map_err(|e| OrdError::Params(e.to_string()))?
 						.is_p2tr();
 
 					if !taproot {

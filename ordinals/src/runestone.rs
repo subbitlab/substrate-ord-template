@@ -1,10 +1,12 @@
+use codec::{Decode, Encode};
+use sp_std::vec::Vec;
 use {super::*, flag::Flag, message::Message, tag::Tag};
 
 mod flag;
 mod message;
 mod tag;
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct Runestone {
 	pub edicts: Vec<Edict>,
 	pub etching: Option<Etching>,

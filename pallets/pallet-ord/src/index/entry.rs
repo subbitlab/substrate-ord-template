@@ -1,14 +1,14 @@
-use bitcoin::consensus::{Decodable, Encodable};
-use bitcoin::{consensus, OutPoint};
+use crate::index::Result;
+use crate::runes::MintError;
+use crate::OrdError;
 use bitcoin::block::Header;
+use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::hashes::Hash;
+use bitcoin::{consensus, OutPoint};
 use codec::{Decode, Encode, MaxEncodedLen};
 use core2::io::Cursor;
-use scale_info::TypeInfo;
 use ordinals::{Pile, Rune, RuneId, SatPoint, SpacedRune, Terms, Txid};
-use crate::OrdError;
-use crate::runes::MintError;
-use crate::index::Result;
+use scale_info::TypeInfo;
 
 pub(crate) trait Entry: Sized {
 	type Value;
@@ -64,9 +64,9 @@ pub struct RuneEntry {
 	// pub number: u64,
 	pub premine: u128,
 	pub spaced_rune: SpacedRune,
-/*	pub symbol: Option<char>,
-	pub terms: Option<Terms>,
-*/	pub timestamp: u64,
+	/*	pub symbol: Option<char>,
+		pub terms: Option<Terms>,
+	*/ pub timestamp: u64,
 	pub turbo: bool,
 }
 
@@ -101,7 +101,6 @@ impl RuneEntry {
 	}
 
 	pub fn supply(&self) -> u128 {
-
 		/*self.premine + self.mints * self.terms.and_then(|terms| terms.amount).unwrap_or_default()*/
 		//TODO
 		100
@@ -109,8 +108,8 @@ impl RuneEntry {
 
 	pub fn max_supply(&self) -> u128 {
 		/*self.premine
-			+ self.terms.and_then(|terms| terms.cap).unwrap_or_default()
-				* self.terms.and_then(|terms| terms.amount).unwrap_or_default()*/
+		+ self.terms.and_then(|terms| terms.cap).unwrap_or_default()
+			* self.terms.and_then(|terms| terms.amount).unwrap_or_default()*/
 		//TODO
 		self.premine
 	}
@@ -167,12 +166,12 @@ pub(crate) type RuneEntryValue = (
 	(u128, u128), // etching
 	u128,         // mints
 	// u64,                     // number
-	u128,                    // premine
-	(u128, u32),             // spaced rune
-/*	Option<char>,             symbol
+	u128,        // premine
+	(u128, u32), // spaced rune
+	/*	Option<char>,             symbol
 	Option<TermsEntryValue>,  terms*/
-	u64,                     // timestamp
-	bool,                    // turbo
+	u64,  // timestamp
+	bool, // turbo
 );
 
 impl Default for RuneEntry {
@@ -186,7 +185,7 @@ impl Default for RuneEntry {
 			// number: 0,
 			premine: 0,
 			spaced_rune: SpacedRune::default(),
-/*			symbol: None,
+			/*			symbol: None,
 			terms: None,*/
 			timestamp: 0,
 			turbo: false,
@@ -207,7 +206,7 @@ impl Entry for RuneEntry {
 			// number,
 			premine,
 			(rune, spacers),
-	/*		symbol,
+			/*		symbol,
 			terms,*/
 			timestamp,
 			turbo,
@@ -231,9 +230,10 @@ impl Entry for RuneEntry {
 			// number,
 			premine,
 			spaced_rune: SpacedRune { rune: Rune(rune), spacers },
-		/*	symbol,
-			terms: terms.map(|(cap, height, amount, offset)| Terms { cap, height, amount, offset }),
-	*/		timestamp,
+			/*	symbol,
+					terms: terms.map(|(cap, height, amount, offset)| Terms { cap, height, amount, offset }),
+			*/
+			timestamp,
 			turbo,
 		}
 	}
@@ -262,10 +262,11 @@ impl Entry for RuneEntry {
 			// self.number,
 			self.premine,
 			(self.spaced_rune.rune.0, self.spaced_rune.spacers),
-/*			self.symbol,
-			self.terms
-				.map(|Terms { cap, height, amount, offset }| (cap, height, amount, offset)),
-	*/		self.timestamp,
+			/*			self.symbol,
+					self.terms
+						.map(|Terms { cap, height, amount, offset }| (cap, height, amount, offset)),
+			*/
+			self.timestamp,
 			self.turbo,
 		)
 	}

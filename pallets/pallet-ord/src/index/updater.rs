@@ -1,10 +1,8 @@
 mod rune_updater;
 
-
 use crate::*;
 use bitcoin::block::Header;
 use bitcoin::{Block, Network, Transaction, Txid};
-
 
 pub struct BlockData {
 	pub header: Header,

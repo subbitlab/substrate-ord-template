@@ -1,5 +1,7 @@
-use {super::*};
-use std::num::ParseFloatError;
+use super::*;
+use alloc::format;
+use alloc::string::String;
+use sp_std::num::ParseFloatError;
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Display, Ord, PartialOrd, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct Sat(pub u64);
@@ -222,7 +224,7 @@ impl Sat {
 
 		let last = Sat::LAST.n() as f64;
 
-		let n = (percentile / 100.0 * last).round();
+		let n = libm::round(percentile / 100.0 * last);
 
 		if n > last {
 			return Err(ErrorKind::Percentile.error(percentile_string));

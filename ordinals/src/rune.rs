@@ -1,6 +1,8 @@
-use codec::{Decode, Encode, MaxEncodedLen};
 use super::*;
+use alloc::string::String;
+use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
+use sp_std::vec::Vec;
 
 #[derive(
 	Default,
@@ -11,9 +13,10 @@ use scale_info::TypeInfo;
 	PartialOrd,
 	Ord,
 	Eq,
-	DeserializeFromStr,
-	SerializeDisplay,
-	Decode, Encode, TypeInfo, MaxEncodedLen
+	Decode,
+	Encode,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct Rune(pub u128);
 
@@ -173,8 +176,6 @@ impl Display for Error {
 		}
 	}
 }
-
-impl std::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
