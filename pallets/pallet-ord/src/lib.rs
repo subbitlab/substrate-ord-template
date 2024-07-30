@@ -1,11 +1,11 @@
 // We make sure this pallet uses `no_std` for compiling to Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use std::collections::HashMap;
 use sp_runtime::offchain::http;
 use thiserror::Error;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use sp_std::vec::Vec;
+use sp_std::collections::btree_map::BTreeMap;
 use ordinals::{Rune, RuneId};
 
 pub mod index;
@@ -45,8 +45,6 @@ pub enum OrdError {
 // All pallet logic is defined in its own module and must be annotated by the `pallet` attribute.
 #[frame_support::pallet]
 pub mod pallet {
-	use std::collections::{BTreeMap, HashMap};
-	use std::ptr::hash;
 	// Import various useful types required by all FRAME pallets.
 	use super::*;
 	use frame_support::pallet_prelude::*;
@@ -251,8 +249,8 @@ pub mod pallet {
 			rpc::get_raw_tx(&url, txid)
 		}
 
-		fn unallocated(tx: &Transaction) -> Result<HashMap<RuneId, crate::index::lot::Lot>> {
-			let mut unallocated: HashMap<RuneId, crate::index::lot::Lot> = HashMap::new();
+		fn unallocated(tx: &Transaction) -> Result<BTreeMap<RuneId, crate::index::lot::Lot>> {
+			let mut unallocated: BTreeMap<RuneId, crate::index::lot::Lot> = BTreeMap::new();
 			for input in &tx.input {
 				let key = OutPoint::store(input.previous_output);
 				let r = Self::outpoint_to_rune_balances(key.clone());
@@ -288,7 +286,7 @@ pub mod pallet {
 
 			let mut unallocated = Self::unallocated(tx)?;
 
-			let mut allocated: Vec<HashMap<RuneId, Lot>> = vec![HashMap::new(); tx.output.len()];
+			let mut allocated: Vec<BTreeMap<RuneId, Lot>> = vec![BTreeMap::new(); tx.output.len()];
 
 			if let Some(artifact) = &artifact {
 				if let Some(id) = artifact.mint() {
@@ -389,7 +387,7 @@ pub mod pallet {
 				}
 			}
 
-			let mut burned: HashMap<RuneId, Lot> = HashMap::new();
+			let mut burned: BTreeMap<RuneId, Lot> = BTreeMap::new();
 
 			if let Some(Artifact::Cenotaph(_)) = artifact {
 				for (id, balance) in unallocated {
@@ -647,7 +645,7 @@ pub mod pallet {
 
 pub(crate) struct RuneUpdater {
 	pub(crate) block_time: u32,
-	pub(crate) burned: HashMap<RuneId, Lot>,
+	pub(crate) burned: BTreeMap<RuneId, Lot>,
 	pub(crate) event_handler: Option<Box<dyn Fn(Event)>>,
 	pub(crate) height: u32,
 	pub(crate) minimum: Rune,

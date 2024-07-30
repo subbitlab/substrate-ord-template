@@ -1,6 +1,5 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use super::*;
-use ic_stable_memory::{AsFixedSizeBytes, StableType};
 use scale_info::TypeInfo;
 
 #[derive(
@@ -34,7 +33,6 @@ Decode, Encode, TypeInfo, MaxEncodedLen
 )]
 pub struct Txid(pub [u8;32]);
 
-impl StableType for SpacedRune {}
 
 impl SpacedRune {
 	pub fn new(rune: Rune, spacers: u32) -> Self {

@@ -1,4 +1,4 @@
-b	use {super::*, updater::BlockData};
+use {super::*, updater::BlockData};
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Error {
