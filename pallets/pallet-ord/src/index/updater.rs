@@ -1,17 +1,16 @@
 mod rune_updater;
-/*
+
 use bitcoincore_rpc_json::GetRawTransactionResult;
 
-use self::rune_updater::RuneUpdater;
 use crate::*;
 use bitcoin::block::Header;
 use bitcoin::{Block, Network, Transaction, Txid};
 use ordinals::{Height, Rune};
 use std::collections::HashMap;
 
-pub(crate) struct BlockData {
-	pub(crate) header: Header,
-	pub(crate) txdata: Vec<(Transaction, Txid)>,
+pub struct BlockData {
+	pub header: Header,
+	pub txdata: Vec<(Transaction, Txid)>,
 }
 
 impl From<Block> for BlockData {
@@ -29,7 +28,7 @@ impl From<Block> for BlockData {
 		}
 	}
 }
-
+/*
 pub(crate) async fn index_block(height: u32, block: BlockData) -> Result<()> {
 	let mut updater = RuneUpdater {
 		block_time: block.header.time,
@@ -46,18 +45,18 @@ pub(crate) async fn index_block(height: u32, block: BlockData) -> Result<()> {
 	Ok(())
 }
 
-pub(crate) async fn get_block(height: u32) -> Result<BlockData> {
+pub fn get_block(height: u32) -> Result<BlockData> {
 	let url = get_url();
-	let hash = rpc::get_block_hash(&url, height).await?;
-	let block = rpc::get_block(&url, hash).await?;
+	let hash = rpc::get_block_hash(&url, height)?;
+	let block = rpc::get_block(&url, hash)?;
 	block
 		.check_merkle_root()
 		.then(|| BlockData::from(block))
 		.ok_or(OrdError::BlockVerification(height))
 }
 
-pub(crate) async fn get_raw_tx(txid: Txid) -> Result<GetRawTransactionResult> {
+pub(crate) fn get_raw_tx(txid: ordinals::Txid) -> Result<GetRawTransactionResult> {
 	let url = get_url();
-	rpc::get_raw_tx(&url, txid).await
+	rpc::get_raw_tx(&url, txid)
 }
 */
