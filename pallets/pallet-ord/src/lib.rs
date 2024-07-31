@@ -14,34 +14,18 @@ mod runes;
 pub mod weights;
 mod rpc_json;
 use sp_std::boxed::Box;
-use crate::index::event::Event;
+use crate::index::event::OrdEvent;
 use crate::index::lot::Lot;
 pub use weights::*;
+use crate::rpc::OrdError;
+use crate::rpc::Result;
+pub use pallet::*;
 
 pub const REQUIRED_CONFIRMATIONS: u32 = 4;
 pub const FIRST_HEIGHT: u32 = 839999;
 pub const FIRST_BLOCK_HASH: &'static str =
 	"0000000000000000000172014ba58d66455762add0512355ad651207918494ab";
 
-pub(crate) type Result<T> = sp_std::result::Result<T, OrdError>;
-
-pub(crate) type OffchainWorkerRpcResult<T> = sp_std::result::Result<T, http::Error>;
-
-#[derive(Debug, Error)]
-pub enum OrdError {
-	#[error("params: {0}")]
-	Params(String),
-	#[error("overflow")]
-	Overflow,
-	#[error("block verification")]
-	BlockVerification(u32),
-	#[error("index error: {0}")]
-	Index(runes::MintError),
-	#[error("rpc error: {0}")]
-	Rpc(#[from] rpc::RpcError),
-	#[error("offchain http error")]
-	OffchainHttp(http::Error),
-}
 // All pallet logic is defined in its own module and must be annotated by the `pallet` attribute.
 #[frame_support::pallet]
 pub mod pallet {
@@ -106,13 +90,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A user has successfully set a new value.
-		SomethingStored {
-			/// The new value set.
-			something: u32,
-			/// The account who set the new value.
-			who: T::AccountId,
-		},
+
 	}
 
 	#[pallet::error]
@@ -133,7 +111,7 @@ pub mod pallet {
 	}
 
 	use bitcoin::blockdata::transaction::OutPoint;
-	use bitcoin::consensus::Encodable;
+
 	use bitcoin::hashes::Hash;
 	use bitcoin::{BlockHash, Transaction};
 	use crate::rpc_json::GetRawTransactionResult;
@@ -292,7 +270,7 @@ pub mod pallet {
 						*unallocated.entry(id).or_default() += amount;
 						let bitcoin_txid = bitcoin::Txid::from_slice(txid.0.as_slice()).unwrap();
 						if let Some(handler) = &updater.event_handler {
-							handler(crate::index::event::Event::RuneMinted {
+							handler(crate::index::event::OrdEvent::RuneMinted {
 								block_height: updater.height,
 								txid: bitcoin_txid,
 								rune_id: id,
@@ -453,7 +431,7 @@ pub mod pallet {
 					vec.push(RuneBalance { id, balance: balance.0 });
 					if let Some(handler) = &updater.event_handler {
 						let bitcoin_txid = bitcoin::Txid::from_slice(txid.0.as_slice()).unwrap();
-						handler(crate::index::event::Event::RuneTransferred {
+						handler(crate::index::event::OrdEvent::RuneTransferred {
 							outpoint,
 							block_height: updater.height,
 							txid: bitcoin_txid,
@@ -472,7 +450,7 @@ pub mod pallet {
 
 				if let Some(handler) = &updater.event_handler {
 					let bitcoin_txid = bitcoin::Txid::from_slice(txid.0.as_slice()).unwrap();
-					handler(crate::index::event::Event::RuneBurned {
+					handler(crate::index::event::OrdEvent::RuneBurned {
 						block_height: updater.height,
 						txid: bitcoin_txid,
 						rune_id: id,
@@ -509,7 +487,7 @@ pub mod pallet {
 					turbo: false,
 				},
 				Artifact::Runestone(Runestone { etching, .. }) => {
-					let Etching { divisibility, terms, premine, spacers, symbol, turbo, .. } =
+					let Etching { divisibility,  premine, spacers,  turbo, .. } =
 						etching.unwrap();
 
 					RuneEntry {
@@ -532,7 +510,7 @@ pub mod pallet {
 
 			let bitcoin_txid = bitcoin::Txid::from_slice(txid.0.as_slice()).unwrap();
 			match &updater.event_handler {
-				Some(handler) => handler(crate::index::event::Event::RuneEtched {
+				Some(handler) => handler(crate::index::event::OrdEvent::RuneEtched {
 					block_height: updater.height,
 					txid: bitcoin_txid,
 					rune_id: id,
@@ -644,7 +622,7 @@ pub mod pallet {
 pub(crate) struct RuneUpdater {
 	pub(crate) block_time: u32,
 	pub(crate) burned: BTreeMap<RuneId, Lot>,
-	pub(crate) event_handler: Option<Box<dyn Fn(Event)>>,
+	pub(crate) event_handler: Option<Box<dyn Fn(OrdEvent)>>,
 	pub(crate) height: u32,
 	pub(crate) minimum: Rune,
 }

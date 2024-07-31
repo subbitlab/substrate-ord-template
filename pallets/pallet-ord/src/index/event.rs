@@ -2,7 +2,7 @@ use bitcoin::{OutPoint, Txid};
 use ordinals::RuneId;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Event {
+pub enum OrdEvent {
 	// InscriptionCreated {
 	//     block_height: u32,
 	//     charms: u16,

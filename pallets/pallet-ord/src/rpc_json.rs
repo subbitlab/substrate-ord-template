@@ -2,10 +2,8 @@ use bitcoin::{Address, Amount, ScriptBuf};
 use bitcoin::address::NetworkUnchecked;
 use bitcoin::block::Version;
 use codec::alloc;
-use serde::{Deserialize, Serialize};
 use sp_std::vec::Vec;
 use alloc::string::String;
-use sp_std::boxed::Box;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct GetRawTransactionResult {

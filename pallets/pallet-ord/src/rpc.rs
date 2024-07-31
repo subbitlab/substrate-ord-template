@@ -2,20 +2,14 @@
 use crate::*;
 use bitcoin::hashes::Hash;
 use bitcoin::{consensus, Block, BlockHash};
-use frame_support::traits::SignedImbalance::Positive;
 use ordinals::Txid;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::{Digest};
 use sp_runtime::offchain::http;
-use sp_runtime::offchain::{Duration, HttpError};
+use sp_runtime::offchain::{Duration};
 use sp_std::str::FromStr;
-use bitcoin::address::NetworkUnchecked;
-use bitcoin::{Address, Amount, ScriptBuf};
-use bitcoin::block::Version;
-use bitcoin::consensus::encode;
 use crate::rpc_json::{GetBlockHeaderResult, GetRawTransactionResult};
 use hex::FromHex;
-use serde::de::Error;
 use thiserror_no_std::Error;
 use crate::alloc::string::String;
 use crate::alloc::string::ToString;
@@ -108,7 +102,7 @@ where
 {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(20000));
 	let data = serde_json::to_string(&payload).unwrap();
-	let mut request =
+	let request =
 		http::Request::post(url, vec![data.clone()]).add_header("Content-Type", "application/json");
 	let pending = request
 		.deadline(deadline)
@@ -182,3 +176,24 @@ pub(crate) fn get_raw_tx(url: &'static str, txid: Txid) -> Result<GetRawTransact
 		blocktime: None,
 	})
 }
+
+#[derive(Debug, Error)]
+pub enum OrdError {
+	#[error("params: {0}")]
+	Params(String),
+	#[error("overflow")]
+	Overflow,
+	#[error("block verification")]
+	BlockVerification(u32),
+	#[error("index error: {0}")]
+	Index(runes::MintError),
+	#[error("rpc error: {0}")]
+	Rpc(#[from] rpc::RpcError),
+	#[error("offchain http error")]
+	OffchainHttp(http::Error),
+}
+
+
+pub(crate) type Result<T> = sp_std::result::Result<T, OrdError>;
+
+pub(crate) type OffchainWorkerRpcResult<T> = sp_std::result::Result<T, http::Error>;

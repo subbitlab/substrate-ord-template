@@ -33,6 +33,7 @@ pub use frame_support::{
 	},
 	StorageValue,
 };
+use frame_support::__private::Get;
 pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -245,10 +246,14 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
-/// Configure the pallet-template in pallets/template.
+parameter_types! {
+	pub MaxOutPointRuneBalancesLen: u32 = u32::MAX;
+}
+
 impl pallet_ord::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_ord::weights::SubstrateWeight<Runtime>;
+	type MaxOutPointRuneBalancesLen = MaxOutPointRuneBalancesLen;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -289,9 +294,9 @@ mod runtime {
 	#[runtime::pallet_index(6)]
 	pub type Sudo = pallet_sudo;
 
-	// Include the custom logic from the pallet-template in the runtime.
+ // Include the custom logic from the pallet-template in the runtime.
 	#[runtime::pallet_index(7)]
-	pub type TemplateModule = pallet_ord;
+	pub type OrdModule = pallet_ord;
 }
 
 /// The address format for describing accounts.

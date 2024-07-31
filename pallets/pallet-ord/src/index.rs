@@ -1,6 +1,5 @@
-use bitcoin::hashes::Hash;
 
-use {self::entry::Entry, super::*, sp_std::str::FromStr};
+use {super::*};
 
 pub use self::entry::RuneEntry;
 

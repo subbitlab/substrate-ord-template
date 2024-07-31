@@ -1,12 +1,9 @@
 use crate::index::Result;
-use crate::runes::MintError;
-use crate::OrdError;
 use bitcoin::block::Header;
 use bitcoin::consensus::{Decodable, Encodable};
-use bitcoin::hashes::Hash;
 use bitcoin::{consensus, OutPoint};
 use codec::{Decode, Encode, MaxEncodedLen};
-use ordinals::{Pile, Rune, RuneId, SatPoint, SpacedRune, Terms, Txid};
+use ordinals::{Pile, Rune, RuneId, SatPoint, SpacedRune, Txid};
 use scale_info::TypeInfo;
 use core2::io::Cursor;
 
@@ -35,7 +32,7 @@ impl Entry for Header {
 
 	fn store(self) -> Self::Value {
 		//TODO
-		let mut buffer = Cursor::new([0; 80]);
+		let buffer = Cursor::new([0; 80]);
 		//let len = self.consensus_encode(&mut buffer).expect("in-memory writers don't error");
 		let buffer = buffer.into_inner();
 	//	debug_assert_eq!(len, buffer.len());
