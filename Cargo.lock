@@ -813,7 +813,6 @@ dependencies = [
  "hex-conservative 0.2.1",
  "hex_lit",
  "secp256k1 0.29.0",
- "serde",
 ]
 
 [[package]]
@@ -827,9 +826,6 @@ name = "bitcoin-internals"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30bdbe14aa07b06e6cfeffc529a1f099e5fbe249524f8125358604df99a4bed2"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "bitcoin-io"
@@ -850,7 +846,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5285c8bcaa25876d07f37e3d30c303f2609179716e11d688f51e8f1fe70063e2"
 dependencies = [
  "bitcoin-internals 0.3.0",
- "serde",
 ]
 
 [[package]]
@@ -887,18 +882,16 @@ checksum = "bb18c03d0db0247e147a21a6faafd5a7eb851c743db062de72018b6b7e8e4d16"
 dependencies = [
  "bitcoin-io",
  "hex-conservative 0.2.1",
- "serde",
 ]
 
 [[package]]
 name = "bitcoincore-rpc-json"
 version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8909583c5fab98508e80ef73e5592a651c954993dc6b7739963257d19f0e71a"
 dependencies = [
  "bitcoin 0.32.2",
  "serde",
  "serde_json",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-v1.9.0)",
 ]
 
 [[package]]
@@ -5108,7 +5101,6 @@ dependencies = [
  "anyhow",
  "bip39",
  "bitcoin 0.30.2",
- "bitcoincore-rpc-json",
  "cfg-if",
  "core2 0.3.3",
  "frame-benchmarking",
@@ -5129,8 +5121,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-v1.9.0)",
- "syn 1.0.109",
- "thiserror",
+ "thiserror-no-std",
 ]
 
 [[package]]
@@ -7698,9 +7689,9 @@ version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e0cc0f1cf93f4969faf3ea1c7d8a9faed25918d96affa959720823dfe86d4f3"
 dependencies = [
- "bitcoin_hashes 0.14.0",
+ "bitcoin_hashes 0.13.0",
+ "rand",
  "secp256k1-sys 0.10.0",
- "serde",
 ]
 
 [[package]]

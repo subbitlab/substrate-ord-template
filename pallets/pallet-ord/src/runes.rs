@@ -7,7 +7,7 @@ pub enum MintError {
 }
 
 impl sp_std::fmt::Display for MintError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut sp_std::fmt::Formatter<'_>) -> sp_std::fmt::Result {
 		match self {
 			MintError::Cap(cap) => write!(f, "limited to {cap} mints"),
 			MintError::End(end) => write!(f, "mint ended on block {end}"),

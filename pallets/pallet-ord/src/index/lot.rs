@@ -1,4 +1,4 @@
-use std::{
+use sp_std::{
 	cmp::{PartialEq, PartialOrd},
 	ops::{Add, AddAssign, Div, Rem, Sub, SubAssign},
 };
@@ -90,7 +90,7 @@ impl PartialEq<u128> for Lot {
 }
 
 impl PartialOrd<u128> for Lot {
-	fn partial_cmp(&self, other: &u128) -> Option<std::cmp::Ordering> {
+	fn partial_cmp(&self, other: &u128) -> Option<sp_std::cmp::Ordering> {
 		self.0.partial_cmp(other)
 	}
 }

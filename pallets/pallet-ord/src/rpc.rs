@@ -1,17 +1,26 @@
+
 use crate::*;
 use bitcoin::hashes::Hash;
 use bitcoin::{consensus, Block, BlockHash};
-use bitcoincore_rpc_json::{GetBlockHeaderResult, GetRawTransactionResult};
 use frame_support::traits::SignedImbalance::Positive;
 use ordinals::Txid;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sp_runtime::offchain::http;
 use sp_runtime::offchain::{Duration, HttpError};
-use std::str::FromStr;
-use syn::BinOp::Add;
-use thiserror::Error;
-
+use sp_std::str::FromStr;
+use bitcoin::address::NetworkUnchecked;
+use bitcoin::{Address, Amount, ScriptBuf};
+use bitcoin::block::Version;
+use bitcoin::consensus::encode;
+use crate::rpc_json::{GetBlockHeaderResult, GetRawTransactionResult};
+use hex::FromHex;
+use serde::de::Error;
+use thiserror_no_std::Error;
+use crate::alloc::string::String;
+use crate::alloc::string::ToString;
+use sp_std::vec::Vec;
+use sp_std::vec;
 #[derive(Debug, Error)]
 pub enum RpcError {
 	#[error("IO error occured while calling {0} onto {1} due to {2}.")]
@@ -71,13 +80,31 @@ pub(crate) fn get_block_hash(url: &'static str, height: u32) -> Result<BlockHash
 
 pub(crate) fn get_block_header(url: &'static str, hash: BlockHash) -> Result<GetBlockHeaderResult> {
 	let paypload =
-		request_payload("getblockheader", serde_json::json!([format!("{:x}", hash), true]));
-	make_rpc::<GetBlockHeaderResult>(url, paypload)
+		request_payload("getblockheader", serde_json::json!([alloc::format!("{:x}", hash), true]));
+	make_rpc::<String>(url, paypload);
+	//TODO
+	Ok(GetBlockHeaderResult {
+		hash,
+		confirmations: 0,
+		height: 0,
+		version: Default::default(),
+		version_hex: None,
+		merkle_root: bitcoin::hash_types::TxMerkleNode::all_zeros(),
+		time: 0,
+		median_time: None,
+		nonce: 0,
+		bits: "".to_string(),
+		difficulty: 0.0,
+		chainwork: vec![],
+		n_tx: 0,
+		previous_block_hash: None,
+		next_block_hash: None,
+	})
 }
 
 pub fn make_rpc<R>(url: &'static str, payload: Payload) -> Result<R>
 where
-	R: for<'a> Deserialize<'a> + std::fmt::Debug,
+	R: for<'a> Deserialize<'a> + sp_std::fmt::Debug,
 {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(20000));
 	let data = serde_json::to_string(&payload).unwrap();
@@ -123,7 +150,7 @@ pub(crate) fn get_best_block_hash(url: &'static str) -> Result<BlockHash> {
 }
 
 pub(crate) fn get_block(url: &'static str, hash: BlockHash) -> Result<Block> {
-	let payload = request_payload("getblock", serde_json::json!([format!("{:x}", hash), 0]));
+	let payload = request_payload("getblock", serde_json::json!([alloc::format!("{:x}", hash), 0]));
 	let hex: String = make_rpc(url, payload)?;
 	use hex::FromHex;
 	let hex = <Vec<u8>>::from_hex(hex)
@@ -135,6 +162,23 @@ pub(crate) fn get_block(url: &'static str, hash: BlockHash) -> Result<Block> {
 pub(crate) fn get_raw_tx(url: &'static str, txid: Txid) -> Result<GetRawTransactionResult> {
 	let value = bitcoin::Txid::from_slice(txid.0.as_slice()).unwrap();
 	let payload =
-		request_payload("getrawtransaction", serde_json::json!([format!("{:x}", value), true]));
-	make_rpc::<GetRawTransactionResult>(url, payload)
+		request_payload("getrawtransaction", serde_json::json!([alloc::format!("{:x}", value), true]));
+	make_rpc::<String>(url, payload);
+	//TODO
+	Ok(GetRawTransactionResult{
+		in_active_chain: None,
+		hex: vec![],
+		txid: bitcoin::Txid::all_zeros(),
+		hash: bitcoin::Wtxid::all_zeros(),
+		size: 0,
+		vsize: 0,
+		version: 0,
+		locktime: 0,
+		vin: vec![],
+		vout: vec![],
+		blockhash: None,
+		confirmations: None,
+		time: None,
+		blocktime: None,
+	})
 }

@@ -1,18 +1,19 @@
 // We make sure this pallet uses `no_std` for compiling to Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
-
+extern crate alloc;
 use sp_runtime::offchain::http;
-use thiserror::Error;
+use thiserror_no_std::Error;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use ordinals::{Rune, RuneId};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
-
+use alloc::string::String;
 pub mod index;
 mod rpc;
 mod runes;
 pub mod weights;
-
+mod rpc_json;
+use sp_std::boxed::Box;
 use crate::index::event::Event;
 use crate::index::lot::Lot;
 pub use weights::*;
@@ -135,7 +136,7 @@ pub mod pallet {
 	use bitcoin::consensus::Encodable;
 	use bitcoin::hashes::Hash;
 	use bitcoin::{BlockHash, Transaction};
-	use bitcoincore_rpc_json::GetRawTransactionResult;
+	use crate::rpc_json::GetRawTransactionResult;
 	use ordinals::{Runestone, Txid};
 
 	impl<T: Config> Pallet<T> {
@@ -183,7 +184,7 @@ pub mod pallet {
 								amount: rune.balance,
 								divisibility: entry.divisibility,
 
-								symbol: None, /*entry.symbol*/, //TODO
+								symbol: None, /*entry.symbol*/ //TODO
 							},
 						);
 					}
@@ -283,7 +284,7 @@ pub mod pallet {
 
 			let mut unallocated = Self::unallocated(tx)?;
 
-			let mut allocated: Vec<BTreeMap<RuneId, Lot>> = vec![BTreeMap::new(); tx.output.len()];
+			let mut allocated: Vec<BTreeMap<RuneId, Lot>> = alloc::vec![BTreeMap::new(); tx.output.len()];
 
 			if let Some(artifact) = &artifact {
 				if let Some(id) = artifact.mint() {
@@ -627,8 +628,7 @@ pub mod pallet {
 					let taproot = tx_info.vout[input.previous_output.vout as usize]
 						.script_pub_key
 						.script()
-						.map_err(|e| OrdError::Params(e.to_string()))?
-						.is_p2tr();
+						.is_v1_p2tr();//TODO
 
 					if !taproot {
 						continue;
