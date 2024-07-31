@@ -63,7 +63,7 @@ const MAX_RESPONSE_BYTES: u64 = 1_995_000;
 // TODO max cycle ~ 1000_000_000_000
 const MAX_CYCLES: u128 = 1_000_000_000_000;
 
-pub(crate) fn get_block_hash(url: &'static str, height: u32) -> Result<BlockHash> {
+pub(crate) fn get_block_hash(url: &str, height: u32) -> Result<BlockHash> {
 	let payload = request_payload("getblockhash", serde_json::json!([height]));
 	let r = make_rpc::<String>(url, payload)?;
 	let hash = BlockHash::from_str(&r).map_err(|e| {
@@ -72,7 +72,7 @@ pub(crate) fn get_block_hash(url: &'static str, height: u32) -> Result<BlockHash
 	Ok(hash)
 }
 
-pub(crate) fn get_block_header(url: &'static str, hash: BlockHash) -> Result<GetBlockHeaderResult> {
+pub(crate) fn get_block_header(url: &str, hash: BlockHash) -> Result<GetBlockHeaderResult> {
 	let paypload =
 		request_payload("getblockheader", serde_json::json!([alloc::format!("{:x}", hash), true]));
 	make_rpc::<String>(url, paypload);
@@ -96,14 +96,15 @@ pub(crate) fn get_block_header(url: &'static str, hash: BlockHash) -> Result<Get
 	})
 }
 
-pub fn make_rpc<R>(url: &'static str, payload: Payload) -> Result<R>
+pub fn make_rpc<R>(url: impl ToString, payload: Payload) -> Result<R>
 where
 	R: for<'a> Deserialize<'a> + sp_std::fmt::Debug,
 {
 	let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(20000));
 	let data = serde_json::to_string(&payload).unwrap();
+	let url = url.to_string();
 	let request =
-		http::Request::post(url, vec![data.clone()]).add_header("Content-Type", "application/json");
+		http::Request::post(url.as_str(), vec![data.clone()]).add_header("Content-Type", "application/json");
 	let pending = request
 		.deadline(deadline)
 		.body(vec![data])
@@ -134,7 +135,7 @@ where
 		"No result".to_string(),
 	)))
 }
-pub(crate) fn get_best_block_hash(url: &'static str) -> Result<BlockHash> {
+pub(crate) fn get_best_block_hash(url: &str) -> Result<BlockHash> {
 	let payload = request_payload("getbestblockhash", serde_json::json!([]));
 	let r = make_rpc::<String>(url, payload)?;
 	let hash = BlockHash::from_str(&r).map_err(|e| {
@@ -143,7 +144,7 @@ pub(crate) fn get_best_block_hash(url: &'static str) -> Result<BlockHash> {
 	Ok(hash)
 }
 
-pub(crate) fn get_block(url: &'static str, hash: BlockHash) -> Result<Block> {
+pub(crate) fn get_block(url: &str, hash: BlockHash) -> Result<Block> {
 	let payload = request_payload("getblock", serde_json::json!([alloc::format!("{:x}", hash), 0]));
 	let hex: String = make_rpc(url, payload)?;
 	use hex::FromHex;
@@ -153,7 +154,7 @@ pub(crate) fn get_block(url: &'static str, hash: BlockHash) -> Result<Block> {
 		.map_err(|e| OrdError::Rpc(RpcError::Decode("getblock", url.to_string(), e.to_string())))
 }
 
-pub(crate) fn get_raw_tx(url: &'static str, txid: Txid) -> Result<GetRawTransactionResult> {
+pub(crate) fn get_raw_tx(url: &str, txid: Txid) -> Result<GetRawTransactionResult> {
 	let value = bitcoin::Txid::from_slice(txid.0.as_slice()).unwrap();
 	let payload =
 		request_payload("getrawtransaction", serde_json::json!([alloc::format!("{:x}", value), true]));

@@ -20,7 +20,6 @@ pub use weights::*;
 use crate::rpc::OrdError;
 use crate::rpc::Result;
 pub use pallet::*;
-
 pub const REQUIRED_CONFIRMATIONS: u32 = 4;
 pub const FIRST_HEIGHT: u32 = 839999;
 pub const FIRST_BLOCK_HASH: &'static str =
@@ -37,10 +36,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use ordinals::{Artifact, Edict, Etching, Pile, Rune, RuneId, SpacedRune};
 
-	// The `Pallet` struct serves as a placeholder to implement traits, methods and dispatchables
-	// (`Call`s) in this pallet.
-	#[pallet::pallet]
-	pub struct Pallet<T>(_);
+
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -87,6 +83,17 @@ pub mod pallet {
 	#[pallet::getter(fn highest_height)]
 	pub type HighestHeight<T: Config> = StorageValue<_, (u32, [u8; 32]), OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn get_url)]
+	pub type RpcUrl<T: Config> = StorageValue<_, String, ValueQuery>;
+
+
+	// The `Pallet` struct serves as a placeholder to implement traits, methods and dispatchables
+	// (`Call`s) in this pallet.
+	#[pallet::pallet]
+	#[pallet::without_storage_info]
+	pub struct Pallet<T>(_);
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -95,23 +102,15 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// The value retrieved was `None` as no value was previously set.
-		NoneValue,
-		/// There was an attempt to increment the value in storage over `u32::MAX`.
-		StorageOverflow,
+
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::do_something())]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			Ok(())
-		}
+
 	}
 
 	use bitcoin::blockdata::transaction::OutPoint;
-
 	use bitcoin::hashes::Hash;
 	use bitcoin::{BlockHash, Transaction};
 	use crate::rpc_json::GetRawTransactionResult;
@@ -211,7 +210,7 @@ pub mod pallet {
 	//updater
 	impl<T: Config> Pallet<T> {
 		pub fn get_block(height: u32) -> Result<BlockData> {
-			let url = "get_url()"; //TODO
+			let url = Self::get_url();
 			let hash = rpc::get_block_hash(&url, height)?;
 			let block = rpc::get_block(&url, hash)?;
 			block
@@ -221,7 +220,7 @@ pub mod pallet {
 		}
 
 		pub(crate) fn get_raw_tx(txid: ordinals::Txid) -> Result<GetRawTransactionResult> {
-			let url = "get_url()"; //TODO
+			let url = Self::get_url();
 			rpc::get_raw_tx(&url, txid)
 		}
 
@@ -243,7 +242,7 @@ pub mod pallet {
 		}
 
 		pub fn get_best_from_rpc() -> Result<(u32, BlockHash)> {
-			let url = "get_url()"; //TODO
+			let url = Self::get_url();
 			let hash = rpc::get_best_block_hash(&url)?;
 			let header = rpc::get_block_header(&url, hash)?;
 			Ok((header.height.try_into().expect("usize to u32"), hash))
@@ -279,9 +278,7 @@ pub mod pallet {
 						}
 					}
 				}
-
 				let etched = Self::etched(&mut *updater, tx_index, tx, artifact)?;
-
 				if let Artifact::Runestone(runestone) = artifact {
 					if let Some((id, ..)) = etched {
 						*unallocated.entry(id).or_default() +=
