@@ -4,6 +4,7 @@ use bitcoin::block::Version;
 use codec::alloc;
 use sp_std::vec::Vec;
 use alloc::string::String;
+use serde::Deserialize;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct GetRawTransactionResult {
@@ -60,7 +61,7 @@ pub struct GetRawTransactionResultVoutScriptPubKey {
 
 
 #[allow(non_camel_case_types)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug, )]
+#[derive(Copy, Clone, PartialEq, Eq, Debug )]
 pub enum ScriptPubkeyType {
 	Nonstandard,
 	Pubkey,
@@ -110,3 +111,39 @@ pub struct GetBlockHeaderResult {
 	pub previous_block_hash: Option<bitcoin::BlockHash>,
 	pub next_block_hash: Option<bitcoin::BlockHash>,
 }
+
+/*
+
+pub mod serde_hex {
+	use serde::de::Error;
+	use hex::FromHex;
+	use serde::{Deserializer, Serializer};
+
+	pub fn serialize<S: Serializer>(b: &Vec<u8>, s: S) -> Result<S::Ok, S::Error> {
+		s.serialize_str(hex::encode(&b).as_str())
+	}
+
+	pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
+		let hex_str: String = ::serde::Deserialize::deserialize(d)?;
+		Ok(FromHex::from_hex(&hex_str).map_err(D::Error::custom)?)
+	}
+
+	pub mod opt {
+		use hex::FromHex;
+		use serde::de::Error;
+		use serde::{Deserializer, Serializer};
+
+		pub fn serialize<S: Serializer>(b: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error> {
+			match *b {
+				None => s.serialize_none(),
+				Some(ref b) => s.serialize_str(hex::encode(&b).as_str()),
+			}
+		}
+
+		pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Vec<u8>>, D::Error> {
+			let hex_str: String = ::serde::Deserialize::deserialize(d)?;
+			Ok(Some(FromHex::from_hex(&hex_str).map_err(D::Error::custom)?))
+		}
+	}
+}
+*/
