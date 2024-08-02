@@ -4,7 +4,7 @@ extern crate alloc;
 use sp_runtime::offchain::http;
 use thiserror_no_std::Error;
 // Re-export pallet items so that they can be accessed from the crate namespace.
-use ordinals::{Rune, RuneId};
+use ordinals::{Rune, RuneId, Terms};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
 use alloc::string::String;
@@ -16,14 +16,20 @@ mod rpc_json;
 use sp_std::boxed::Box;
 use crate::index::event::OrdEvent;
 use crate::index::lot::Lot;
+use ordinals::Height;
+use bitcoin::Network;
+use alloc::string::ToString;
+use bitcoin::constants::SUBSIDY_HALVING_INTERVAL;
 pub use weights::*;
 use crate::rpc::OrdError;
 use crate::rpc::Result;
+use sp_std::collections::btree_map::BTreeMap as HashMap;
 pub use pallet::*;
 pub const REQUIRED_CONFIRMATIONS: u32 = 4;
 pub const FIRST_HEIGHT: u32 = 839999;
 pub const FIRST_BLOCK_HASH: &'static str =
 	"0000000000000000000172014ba58d66455762add0512355ad651207918494ab";
+
 
 // All pallet logic is defined in its own module and must be annotated by the `pallet` attribute.
 #[frame_support::pallet]
@@ -80,7 +86,7 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, u32, [u8; 32], OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn highest_height)]
+	#[pallet::getter(fn highest_block)]
 	pub type HighestHeight<T: Config> = StorageValue<_, (u32, [u8; 32]), OptionQuery>;
 
 	#[pallet::storage]
@@ -110,20 +116,61 @@ pub mod pallet {
 
 	}
 
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn offchain_worker(block_number: BlockNumberFor<T>) {
+			let highest_info = Self::highest_block();
+			if highest_info.is_none() {
+				return;
+			}
+			let (height, current) = highest_info.unwrap();
+
+			match Self::get_best_from_rpc() {
+				Ok((best, _)) => {
+					log::info!("our best = {}, their best = {}", height, best);
+					if height + REQUIRED_CONFIRMATIONS >= best {
+						return;
+					} else {
+						match Self::get_block(height + 1) {
+							Ok(block) => {
+								let current_hash = BlockHash::from_slice(current.as_slice()).unwrap();
+								if block.header.prev_blockhash != current_hash {
+									log::info!(
+											"reorg detected! our best = {}({:x}), the new block to be applied {:?}",
+											height,
+											current_hash,
+											block.header
+										  );
+									return;
+								}
+								log::info!("indexing block {:?}", block.header);
+								if let Err(e) = Self::index_block(height + 1, block) {
+									log::info!("index error: {:?}", e);
+								}
+							}
+							Err(e) => {
+								log::info!("error: {:?}", e);
+
+							}
+						}
+					}
+				}
+				Err(e) => {
+					log::info!("error: {:?}", e);
+				}
+			}
+		}
+	}
+
 	use bitcoin::blockdata::transaction::OutPoint;
 	use bitcoin::hashes::Hash;
 	use bitcoin::{BlockHash, Transaction};
-	use crate::rpc_json::GetRawTransactionResult;
 	use ordinals::{Runestone, Txid};
 
 	impl<T: Config> Pallet<T> {
 		pub(crate) fn increase_height(height: u32, hash: [u8; 32]) {
 			HeightToBlockHash::<T>::insert(height, hash.clone());
 			HighestHeight::<T>::put((height, hash));
-		}
-
-		pub(crate) fn highest_block() -> (u32, [u8; 32]) {
-			Self::highest_height().unwrap_or_default()
 		}
 
 		fn set_beginning_block() {
@@ -160,8 +207,10 @@ pub mod pallet {
 							Pile {
 								amount: rune.balance,
 								divisibility: entry.divisibility,
-
-								symbol: None, /*entry.symbol*/ //TODO
+								symbol: entry.symbol.map(|s|{
+									let v: Vec<char> = s.chars().collect();
+									v[0]
+								})
 							},
 						);
 					}
@@ -184,7 +233,7 @@ pub mod pallet {
 					burned: 0,
 					divisibility: 0,
 					etching,
-					/*		terms: Some(Terms {
+						terms: Some(Terms {
 						amount: Some(1),
 						cap: Some(u128::MAX),
 						height: (
@@ -192,11 +241,11 @@ pub mod pallet {
 							Some((SUBSIDY_HALVING_INTERVAL * 5).into()),
 						),
 						offset: (None, None),
-					}),*/ //TODO
+					}),//TODO
 					mints: 0,
 					premine: 0,
 					spaced_rune: SpacedRune { rune, spacers: 128 },
-					/*symbol: Some('\u{29C9}'),*/ //TODO
+					symbol: Some('\u{29C9}'.to_string()),//TODO
 					timestamp: 0,
 					turbo: true,
 				},
@@ -217,11 +266,6 @@ pub mod pallet {
 				.check_merkle_root()
 				.then(|| BlockData::from(block))
 				.ok_or(OrdError::BlockVerification(height))
-		}
-
-		pub(crate) fn get_raw_tx(txid: ordinals::Txid) -> Result<GetRawTransactionResult> {
-			let url = Self::get_url();
-			rpc::get_raw_tx(&url, txid)
 		}
 
 		fn unallocated(tx: &Transaction) -> Result<BTreeMap<RuneId, crate::index::lot::Lot>> {
@@ -250,6 +294,24 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+
+		pub fn index_block(height: u32, block: BlockData) -> Result<()> {
+			let mut updater = RuneUpdater {
+				block_time: block.header.time,
+				burned: HashMap::new(),
+				event_handler: None,
+				height,
+				minimum: Rune::minimum_at_height(Network::Bitcoin, Height(height)),
+			};
+			for (i, (tx, txid)) in block.txdata.iter().enumerate() {
+				let ordinals_txid = ordinals::Txid::from(txid.clone());
+				Self::index_runes(&mut updater, u32::try_from(i).unwrap(), tx, ordinals_txid)?;
+			}
+			Self::update(updater)?;
+			Self::increase_height(height, block.header.block_hash().to_byte_array());
+			Ok(())
+		}
+
 		//runes updater integreate
 		pub(super) fn index_runes(
 			updater: &mut RuneUpdater,
@@ -475,16 +537,16 @@ pub mod pallet {
 					burned: 0,
 					divisibility: 0,
 					etching: txid,
-					//TODO terms: None,
+					terms: None, //TODO
 					mints: 0,
 					premine: 0,
 					spaced_rune: SpacedRune { rune, spacers: 0 },
-					//TODO symbol: None,
+					symbol: None, //TODO
 					timestamp: updater.block_time.into(),
 					turbo: false,
 				},
 				Artifact::Runestone(Runestone { etching, .. }) => {
-					let Etching { divisibility,  premine, spacers,  turbo, .. } =
+					let Etching { divisibility,  terms, premine, spacers, symbol, turbo, .. } =
 						etching.unwrap();
 
 					RuneEntry {
@@ -492,11 +554,11 @@ pub mod pallet {
 						burned: 0,
 						divisibility: divisibility.unwrap_or_default(),
 						etching: txid,
-						//TODO terms,
+						terms,
 						mints: 0,
 						premine: premine.unwrap_or_default(),
 						spaced_rune: SpacedRune { rune, spacers: spacers.unwrap_or_default() },
-						//TODO symbol,
+						symbol: symbol.map(|c|c.to_string()),
 						timestamp: updater.block_time.into(),
 						turbo,
 					}
@@ -568,50 +630,6 @@ pub mod pallet {
 				RuneIdToRuneEntry::<T>::insert(rune_id, entry);
 			}
 			Ok(())
-		}
-
-		fn tx_commits_to_rune(tx: &Transaction, rune: Rune) -> Result<bool> {
-			let commitment = rune.commitment();
-
-			for input in &tx.input {
-				// extracting a tapscript does not indicate that the input being spent
-				// was actually a taproot output. this is checked below, when we load the
-				// output's entry from the database
-				let Some(tapscript) = input.witness.tapscript() else {
-					continue;
-				};
-
-				for instruction in tapscript.instructions() {
-					// ignore errors, since the extracted script may not be valid
-					let Ok(instruction) = instruction else {
-						break;
-					};
-
-					let Some(pushbytes) = instruction.push_bytes() else {
-						continue;
-					};
-
-					if pushbytes.as_bytes() != commitment {
-						continue;
-					}
-
-					let v = input.previous_output.txid.to_byte_array();
-					let mut txid_content = [0u8; 32];
-					txid_content.copy_from_slice(v.as_slice());
-					let txid = Txid(txid_content);
-					let tx_info = Self::get_raw_tx(txid)?;
-					let taproot = tx_info.vout[input.previous_output.vout as usize]
-						.script_pub_key
-						.script()
-						.is_v1_p2tr();//TODO
-
-					if !taproot {
-						continue;
-					}
-					return Ok(true);
-				}
-			}
-			Ok(false)
 		}
 	}
 }

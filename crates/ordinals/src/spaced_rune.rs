@@ -2,6 +2,7 @@ use super::*;
 use alloc::string::String;
 use codec::{Decode, Encode, MaxEncodedLen};
 use core::str::FromStr;
+use bitcoin::hashes::Hash;
 use scale_info::TypeInfo;
 
 #[derive(
@@ -38,6 +39,15 @@ pub struct SpacedRune {
 	MaxEncodedLen,
 )]
 pub struct Txid(pub [u8; 32]);
+
+impl From<bitcoin::Txid> for Txid {
+	fn from(value: bitcoin::Txid) -> Self {
+		let v = value.as_byte_array().to_vec();
+		let mut c = [0u8;32];
+		c.copy_from_slice(v.as_slice());
+		Txid(c)
+	}
+}
 
 impl SpacedRune {
 	pub fn new(rune: Rune, spacers: u32) -> Self {

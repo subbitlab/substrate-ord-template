@@ -4,8 +4,6 @@ use scale_info::TypeInfo;
 
 #[derive(
 	Default,
-	Serialize,
-	Deserialize,
 	Debug,
 	PartialEq,
 	Copy,

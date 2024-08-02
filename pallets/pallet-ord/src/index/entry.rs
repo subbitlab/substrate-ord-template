@@ -3,9 +3,12 @@ use bitcoin::block::Header;
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::{consensus, OutPoint};
 use codec::{Decode, Encode, MaxEncodedLen};
-use ordinals::{Pile, Rune, RuneId, SatPoint, SpacedRune, Txid};
+use ordinals::{Pile, Rune, RuneId, SatPoint, SpacedRune, Terms, Txid};
 use scale_info::TypeInfo;
 use core2::io::Cursor;
+use alloc::string::String;
+use crate::rpc::OrdError;
+use crate::runes::MintError;
 
 pub(crate) trait Entry: Sized {
 	type Value;
@@ -15,7 +18,7 @@ pub(crate) trait Entry: Sized {
 	fn store(self) -> Self::Value;
 }
 
-#[derive(Copy, Eq, PartialEq, Clone, Debug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Copy, Eq, PartialEq, Clone, Debug, Encode, Decode, TypeInfo)]
 pub struct RuneBalance {
 	pub id: RuneId,
 	pub balance: u128,
@@ -52,7 +55,7 @@ impl Entry for Rune {
 	}
 }
 
-#[derive(Debug, PartialEq, Copy, Clone, Decode, Encode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, PartialEq, Clone, Decode, Encode, TypeInfo)]
 pub struct RuneEntry {
 	pub block: u64,
 	pub burned: u128,
@@ -62,16 +65,15 @@ pub struct RuneEntry {
 	// pub number: u64,
 	pub premine: u128,
 	pub spaced_rune: SpacedRune,
-	/*	pub symbol: Option<char>,
-		pub terms: Option<Terms>,
-	*/ pub timestamp: u64,
+	pub symbol: Option<String>,
+	pub terms: Option<Terms>,
+	pub timestamp: u64,
 	pub turbo: bool,
 }
 
 impl RuneEntry {
 	pub fn mintable(&self, height: u64) -> Result<u128> {
-		//TODO
-		/*let Some(terms) = self.terms else {
+		let Some(terms) = self.terms else {
 			return Err(OrdError::Index(MintError::Unmintable));
 		};
 
@@ -94,22 +96,17 @@ impl RuneEntry {
 		}
 
 		Ok(terms.amount.unwrap_or_default())
-		 */
-		Ok(100)
+
 	}
 
 	pub fn supply(&self) -> u128 {
-		/*self.premine + self.mints * self.terms.and_then(|terms| terms.amount).unwrap_or_default()*/
-		//TODO
-		100
+		self.premine + self.mints * self.terms.and_then(|terms| terms.amount).unwrap_or_default()
 	}
 
 	pub fn max_supply(&self) -> u128 {
-		/*self.premine
-		+ self.terms.and_then(|terms| terms.cap).unwrap_or_default()
-			* self.terms.and_then(|terms| terms.amount).unwrap_or_default()*/
-		//TODO
 		self.premine
+		+ self.terms.and_then(|terms| terms.cap).unwrap_or_default()
+			* self.terms.and_then(|terms| terms.amount).unwrap_or_default()
 	}
 
 	pub fn pile(&self, amount: u128) -> Pile {
@@ -118,7 +115,7 @@ impl RuneEntry {
 	}
 
 	pub fn start(&self) -> Option<u64> {
-		/*let terms = self.terms?;
+		let terms = self.terms?;
 
 		let relative = terms.offset.0.map(|offset| self.block.saturating_add(offset));
 
@@ -128,13 +125,11 @@ impl RuneEntry {
 			.zip(absolute)
 			.map(|(relative, absolute)| relative.max(absolute))
 			.or(relative)
-			.or(absolute)*/
-		Some(100)
-		//TODO
+			.or(absolute)
 	}
 
 	pub fn end(&self) -> Option<u64> {
-		/*let terms = self.terms?;
+		let terms = self.terms?;
 
 		let relative = terms.offset.1.map(|offset| self.block.saturating_add(offset));
 
@@ -144,9 +139,7 @@ impl RuneEntry {
 			.zip(absolute)
 			.map(|(relative, absolute)| relative.min(absolute))
 			.or(relative)
-			.or(absolute)*/
-		//TODO
-		Some(100)
+			.or(absolute)
 	}
 }
 
@@ -166,8 +159,8 @@ pub(crate) type RuneEntryValue = (
 	// u64,                     // number
 	u128,        // premine
 	(u128, u32), // spaced rune
-	/*	Option<char>,             symbol
-	Option<TermsEntryValue>,  terms*/
+		Option<String>,         //    symbol
+	Option<TermsEntryValue>, // terms
 	u64,  // timestamp
 	bool, // turbo
 );
@@ -183,8 +176,8 @@ impl Default for RuneEntry {
 			// number: 0,
 			premine: 0,
 			spaced_rune: SpacedRune::default(),
-			/*			symbol: None,
-			terms: None,*/
+			symbol: None,
+			terms: None,
 			timestamp: 0,
 			turbo: false,
 		}
@@ -204,8 +197,8 @@ impl Entry for RuneEntry {
 			// number,
 			premine,
 			(rune, spacers),
-			/*		symbol,
-			terms,*/
+			symbol,
+			terms,
 			timestamp,
 			turbo,
 		): RuneEntryValue,
@@ -228,9 +221,8 @@ impl Entry for RuneEntry {
 			// number,
 			premine,
 			spaced_rune: SpacedRune { rune: Rune(rune), spacers },
-			/*	symbol,
-					terms: terms.map(|(cap, height, amount, offset)| Terms { cap, height, amount, offset }),
-			*/
+			symbol,
+			terms: terms.map(|(cap, height, amount, offset)| Terms { cap, height, amount, offset }),
 			timestamp,
 			turbo,
 		}
@@ -260,10 +252,10 @@ impl Entry for RuneEntry {
 			// self.number,
 			self.premine,
 			(self.spaced_rune.rune.0, self.spaced_rune.spacers),
-			/*			self.symbol,
-					self.terms
+			self.symbol,
+			self.terms
 						.map(|Terms { cap, height, amount, offset }| (cap, height, amount, offset)),
-			*/
+
 			self.timestamp,
 			self.turbo,
 		)

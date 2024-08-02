@@ -8,7 +8,7 @@ use sha2::{Digest};
 use sp_runtime::offchain::http;
 use sp_runtime::offchain::{Duration};
 use sp_std::str::FromStr;
-use crate::rpc_json::{GetBlockHeaderResult, GetRawTransactionResult};
+use crate::rpc_json::{GetBlockHeaderResult};
 use hex::FromHex;
 use thiserror_no_std::Error;
 use crate::alloc::string::String;
@@ -59,10 +59,6 @@ fn request_payload(endpoint: &'static str, params: serde_json::Value) -> Payload
 	Payload { jsonrpc: "1.0", id: "btc0", method: endpoint, params }
 }
 
-const MAX_RESPONSE_BYTES: u64 = 1_995_000;
-// TODO max cycle ~ 1000_000_000_000
-const MAX_CYCLES: u128 = 1_000_000_000_000;
-
 pub(crate) fn get_block_hash(url: &str, height: u32) -> Result<BlockHash> {
 	let payload = request_payload("getblockhash", serde_json::json!([height]));
 	let r = make_rpc::<String>(url, payload)?;
@@ -75,25 +71,7 @@ pub(crate) fn get_block_hash(url: &str, height: u32) -> Result<BlockHash> {
 pub(crate) fn get_block_header(url: &str, hash: BlockHash) -> Result<GetBlockHeaderResult> {
 	let paypload =
 		request_payload("getblockheader", serde_json::json!([alloc::format!("{:x}", hash), true]));
-	make_rpc::<String>(url, paypload);
-	//TODO
-	Ok(GetBlockHeaderResult {
-		hash,
-		confirmations: 0,
-		height: 0,
-		version: Default::default(),
-		version_hex: None,
-		merkle_root: bitcoin::hash_types::TxMerkleNode::all_zeros(),
-		time: 0,
-		median_time: None,
-		nonce: 0,
-		bits: "".to_string(),
-		difficulty: 0.0,
-		chainwork: vec![],
-		n_tx: 0,
-		previous_block_hash: None,
-		next_block_hash: None,
-	})
+	make_rpc::<GetBlockHeaderResult>(url, paypload)
 }
 
 pub fn make_rpc<R>(url: impl ToString, payload: Payload) -> Result<R>
@@ -144,7 +122,8 @@ pub(crate) fn get_best_block_hash(url: &str) -> Result<BlockHash> {
 	Ok(hash)
 }
 
-pub(crate) fn get_block(url: &str, hash: BlockHash) -> Result<Block> {
+pub(crate) fn
+get_block(url: &str, hash: BlockHash) -> Result<Block> {
 	let payload = request_payload("getblock", serde_json::json!([alloc::format!("{:x}", hash), 0]));
 	let hex: String = make_rpc(url, payload)?;
 	use hex::FromHex;
@@ -152,30 +131,6 @@ pub(crate) fn get_block(url: &str, hash: BlockHash) -> Result<Block> {
 		.map_err(|e| OrdError::Rpc(RpcError::Decode("getblock", url.to_string(), e.to_string())))?;
 	consensus::encode::deserialize(&hex)
 		.map_err(|e| OrdError::Rpc(RpcError::Decode("getblock", url.to_string(), e.to_string())))
-}
-
-pub(crate) fn get_raw_tx(url: &str, txid: Txid) -> Result<GetRawTransactionResult> {
-	let value = bitcoin::Txid::from_slice(txid.0.as_slice()).unwrap();
-	let payload =
-		request_payload("getrawtransaction", serde_json::json!([alloc::format!("{:x}", value), true]));
-	make_rpc::<String>(url, payload);
-	//TODO
-	Ok(GetRawTransactionResult{
-		in_active_chain: None,
-		hex: vec![],
-		txid: bitcoin::Txid::all_zeros(),
-		hash: bitcoin::Wtxid::all_zeros(),
-		size: 0,
-		vsize: 0,
-		version: 0,
-		locktime: 0,
-		vin: vec![],
-		vout: vec![],
-		blockhash: None,
-		confirmations: None,
-		time: None,
-		blocktime: None,
-	})
 }
 
 #[derive(Debug, Error)]
@@ -198,3 +153,5 @@ pub enum OrdError {
 pub(crate) type Result<T> = sp_std::result::Result<T, OrdError>;
 
 pub(crate) type OffchainWorkerRpcResult<T> = sp_std::result::Result<T, http::Error>;
+
+
