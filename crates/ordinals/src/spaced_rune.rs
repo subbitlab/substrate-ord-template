@@ -42,10 +42,8 @@ pub struct Txid(pub [u8; 32]);
 
 impl From<bitcoin::Txid> for Txid {
 	fn from(value: bitcoin::Txid) -> Self {
-		let v = value.as_byte_array().to_vec();
-		let mut c = [0u8;32];
-		c.copy_from_slice(v.as_slice());
-		Txid(c)
+		let v = value.to_byte_array();
+		Txid(v)
 	}
 }
 

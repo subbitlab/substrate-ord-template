@@ -1,4 +1,3 @@
-mod rune_updater;
 
 use crate::*;
 use bitcoin::block::Header;
