@@ -3,11 +3,14 @@
 extern crate alloc;
 use sp_runtime::offchain::http;
 use thiserror_no_std::Error;
+use frame_support::traits::BuildGenesisConfig;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use ordinals::{Rune, RuneId, Terms};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec::Vec;
+use sp_std::marker::PhantomData;
 use alloc::string::String;
+use sp_std::str::FromStr;
 pub mod index;
 mod rpc;
 mod runes;
@@ -53,6 +56,18 @@ pub mod pallet {
 		type MaxOutPointRuneBalancesLen: Get<u32>;
 	}
 
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T> {
+		pub phantom: PhantomData<T>,
+		pub initial_rpc_url: String,
+	}
+
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			Self { phantom: Default::default(), initial_rpc_url: "".to_string(),}
+		}
+	}
+
 	#[pallet::storage]
 	pub type Something<T> = StorageValue<_, u32>;
 
@@ -94,6 +109,49 @@ pub mod pallet {
 	pub type RpcUrl<T: Config> = StorageValue<_, String, ValueQuery>;
 
 
+
+	#[pallet::genesis_build]
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+		fn build(&self) {
+			RpcUrl::<T>::put(self.initial_rpc_url.clone());
+			let hash = BlockHash::from_str(FIRST_BLOCK_HASH).expect("valid hash").to_byte_array();
+			HeightToBlockHash::<T>::insert(FIRST_HEIGHT, hash.clone());
+			HighestHeight::<T>::put((FIRST_HEIGHT, hash));
+
+
+			let rune = Rune(2055900680524219742);
+			let id = RuneId { block: 1, tx: 0 };
+			let etching = ordinals::Txid([0u8;32]);
+
+			RuneToRuneId::<T>::insert(rune.store(), id);
+
+			RuneIdToRuneEntry::<T>::insert(
+					id,
+					RuneEntry {
+						block: id.block,
+						burned: 0,
+						divisibility: 0,
+						etching,
+						terms: Some(Terms {
+							amount: Some(1),
+							cap: Some(u128::MAX),
+							height: (
+								Some((SUBSIDY_HALVING_INTERVAL * 4).into()),
+								Some((SUBSIDY_HALVING_INTERVAL * 5).into()),
+							),
+							offset: (None, None),
+						}),
+						mints: 0,
+						premine: 0,
+						spaced_rune: SpacedRune { rune, spacers: 128 },
+						symbol: Some('\u{29C9}'.to_string()),
+						timestamp: 0,
+						turbo: true, });
+
+			TransactionIdToRune::<T>::insert(etching.store(), rune.store());
+		}
+	}
+
 	// The `Pallet` struct serves as a placeholder to implement traits, methods and dispatchables
 	// (`Call`s) in this pallet.
 	#[pallet::pallet]
@@ -115,6 +173,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 
 	}
+
+
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -320,11 +380,8 @@ pub mod pallet {
 			txid: Txid,
 		) -> Result<()> {
 			let artifact = Runestone::decipher(tx);
-
 			let mut unallocated = Self::unallocated(tx)?;
-
 			let mut allocated: Vec<BTreeMap<RuneId, Lot>> = alloc::vec![BTreeMap::new(); tx.output.len()];
-
 			if let Some(artifact) = &artifact {
 				if let Some(id) = artifact.mint() {
 					if let Some(amount) = Self::mint(&mut *updater, id)? {
