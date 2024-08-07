@@ -8,9 +8,7 @@ homepage = "https://substrate.io"
 [workspace]
 members = [
     "node",
-    "pallets/pallet-ord",
     "runtime",
-	"crates/ordinals",
 ]
 resolver = "2"
 [profile.release]

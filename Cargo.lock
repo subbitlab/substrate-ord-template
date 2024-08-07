@@ -1801,12 +1801,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diff"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8"
-
-[[package]]
 name = "difflib"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4728,7 +4722,7 @@ dependencies = [
  "pallet-aura",
  "pallet-balances",
  "pallet-grandpa",
- "pallet-ord",
+ "pallet-ordinals",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
@@ -4926,16 +4920,15 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 [[package]]
 name = "ordinals"
 version = "0.0.8"
+source = "git+https://github.com/subbitlab/pallet-ordinals.git#e0d6a9b3ccac59353d741ceed1b83106e1bbaad9"
 dependencies = [
  "bitcoin",
  "core2 0.3.3",
  "derive_more",
  "libm",
  "parity-scale-codec",
- "pretty_assertions",
  "scale-info",
  "serde",
- "serde_json",
  "serde_with",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-v1.9.0)",
  "thiserror-no-std",
@@ -5012,8 +5005,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-ord"
-version = "0.0.0"
+name = "pallet-ordinals"
+version = "0.0.1"
+source = "git+https://github.com/subbitlab/pallet-ordinals.git#e0d6a9b3ccac59353d741ceed1b83106e1bbaad9"
 dependencies = [
  "anyhow",
  "bip39",
@@ -5034,7 +5028,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.8",
- "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-v1.9.0)",
@@ -5642,16 +5635,6 @@ checksum = "368ba315fb8c5052ab692e68a0eefec6ec57b23a36959c14496f0b0df2c0cecf"
 dependencies = [
  "predicates-core",
  "termtree",
-]
-
-[[package]]
-name = "pretty_assertions"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af7cee1a6c8a5b9208b3cb1061f10c0cb689087b3d8ce85fb9d2dd7a29b6ba66"
-dependencies = [
- "diff",
- "yansi",
 ]
 
 [[package]]
@@ -7709,7 +7692,6 @@ version = "1.0.115"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12dc5c46daa8e9fdf4f5e71b6cf9a53f2487da0e86e55808e2d35539666497dd"
 dependencies = [
- "indexmap 2.2.2",
  "itoa",
  "ryu",
  "serde",
@@ -10572,12 +10554,6 @@ dependencies = [
  "rand",
  "static_assertions",
 ]
-
-[[package]]
-name = "yansi"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
 
 [[package]]
 name = "yasna"
